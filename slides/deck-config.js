@@ -1,69 +1,59 @@
 // 색상·폰트·문구는 이 파일만 고치면 모든 슬라이드에 반영됩니다. (references/template/config.js와 같은 역할)
-// 수치는 deck-data.js(자동 생성)에서 읽습니다.
+// 수치는 deck-data.js(자동 생성: scripts/analysis/2026-10-23_build-deck-data.py)에서 읽습니다.
 window.KIT = {
   W: 1920, H: 1080,
-  LOOP: 8, BUILD: 2.2, HOLD: 4.4, BACK: 1.4, // 템플릿 타이밍 계승: 변환 2.2초. 덱에서는 변환 후 완료 상태 유지(once)
-  // Nintendo.com (2001) 팔레트 — DESIGN.md
+  LOOP: 8, BUILD: 2.2, HOLD: 4.4, BACK: 1.4, // 템플릿 타이밍 그대로. 덱에서는 변환 2.2초 후 완료 상태 유지(once)
+  // references/template/config.js 팔레트 그대로
   C: {
-    primary: '#e60012', signal: '#f68d1f', amber: '#ecab37', gold: '#e48600',
-    canvas: '#7a8aba', soft: '#9fbee7', lavender: '#acace7', ice: '#c0d5e6', peri: '#8ba1d4',
-    indigo: '#3d4f97', mindigo: '#60619c', platinum: '#dedede', white: '#ffffff',
-    carbon: '#21242e', hair: '#5a5f8c', teal: '#206479', gred: '#a7282b',
-    // core.js 호환용 별칭
-    bg: '#7a8aba', ink: '#21242e', muted: '#3d4f97', grid: '#5a5f8c', track: '#dedede',
-    a: '#3d4f97', b: '#9fbee7', a2: '#8ba1d4', b2: '#c0d5e6', dark: '#21242e', paper: '#ffffff'
+    bg: '#f2f2f3', ink: '#1d1f20', muted: '#5d5d60', grid: '#d4d4d7', track: '#e7e7ea',
+    a: '#416180',   // 강조색 (accent-700)
+    b: '#94bce3',   // 보조색 (accent-400)
+    a2: '#749dc4', b2: '#d6ebff', dark: '#1d2d3d', paper: '#f5f5f8', card: '#ffffff'
   },
-  FONT: "'Pretendard', Arial, sans-serif",
-  NUM: "'Arial Black', 'Archivo Black', 'Pretendard', sans-serif",
-  DISPLAY: "'Arial Black', 'Archivo Black', 'Pretendard', sans-serif",
-  PIXEL: "'Silkscreen', 'Press Start 2P', monospace",
+  FONT: "'Pretendard', sans-serif",
+  NUM: "'Barlow Condensed', 'Pretendard', sans-serif",
   E: {}
 };
 
+// 슬라이드 순서·문구. 제목은 템플릿 규칙대로 "무엇이 어떻다" 한 문장 + 수치 하나.
 window.DECK = {
-  brand: 'GUINIUS',
-  nav: ['SERVICE', 'BACKGROUND', 'INSIGHT', 'AI LAB', 'ROADMAP'],
   slides: [
-    { nav: 0, kicker: 'GUINIUS CLUB · 기획 배경 및 서비스 포지셔닝', source: '출처: data/code_artifact.md — 기니어스클럽 기획 문서' },
-    { nav: 1, kicker: '02  PROBLEM · 기존 스터디 툴의 피로도', title: '감시는 지치게 하고, 혼자는 외롭게 한다', source: '출처: data/code_artifact.md Slide 2 · 정성 문제 정의(외부 통계 미인용)' },
-    { nav: 1, kicker: '03  TREND · Z세대 웰니스', title: "몰입은 '같이 있되 간섭하지 않는' 방식으로 바뀌었다", source: '출처: data/code_artifact.md Slide 3 · 트렌드 해석(외부 통계 미인용)' },
-    { nav: 1, kicker: '04  SOLUTION · 니즈 → 기능 매핑', title: '네 가지 니즈를 네 가지 기능으로 연결한다', source: '출처: data/code_artifact.md Slide 4' },
-    { nav: 2, kicker: '05  INSIGHT ① · 포럼 텍스트 분석', title: '반려인 질문의 57.4%에는 걱정이 묻어 있다', source: '출처: analysis/findings.md F1–F3 · GuineaPigCages.com 질문 47건 (Firecrawl 수집, 2026-10-23)' },
-    { nav: 2, kicker: '06  INSIGHT ② · 행복의 순간', title: '기니피그는 작은 순간에 튀어 오르고, 소리로 말을 건다', source: '출처: analysis/findings.md J3–J4 · GuineaPigCages.com 스레드 44개 · 931문단' },
-    { nav: 3, kicker: '07  AI LAB · Kaggle ResNet18 전이학습', title: '처음 보는 사진 20장 중 17장을 가려냈다', source: '출처: data/classification_results.csv · ImageNet 사전학습 ResNet18, 5 epoch, 검증 20장' },
-    { nav: 3, kicker: '08  AI LAB · 오분류 분석', title: '틀린 사진의 공통점: 몸통 실루엣이 작거나 가려졌다', source: '출처: data/classification_results.csv · 검증셋 오분류 3장 (사진: Pexels / Unsplash)' },
-    { nav: 4, kicker: '09  VISION · 온·오프라인 확장 로드맵', title: '스터디 타이머를 넘어, 펫과 함께하는 코워킹 월드로', source: '출처: data/code_artifact.md Slide 5 · 단계 구성과 오프라인 확장은 제안(안)' },
-    { nav: 4, kicker: '10  TARGET · 누구를 위한 방인가', title: '혼자지만 외롭지 않은 몰입, 지금 시작합니다', source: '출처: data/code_artifact.md Slide 5 · 수치는 slides/deck-data.js' }
+    { id: 'cover', dark: true, name: '표지', kicker: 'GUINEA PIG · HAMSTER DATA REPORT', title: ['기니피그와 햄스터,', '데이터로 읽다'], sub: '반려인 질문 47건 · 포럼 문단 931개 · 사진 100장', source: '2026.10.23' },
+    { id: 'why', name: '기획 배경', kicker: '00 기획 배경 · GUINIUS CLUB', title: '펫 스터디룸을 만들기 전에, 진짜 기니피그부터 봤다', source: '출처: data/code_artifact.md — 기니어스클럽 기획 문서' },
+    { id: 'data', name: '데이터 개요', kicker: '01 데이터 개요', title: '세 가지 데이터로 기니피그와 햄스터를 들여다봤다', source: '출처: data/raw/firecrawl/ (GuineaPigCages.com, 2026-10-23 수집) · data/classification_results.csv' },
+    { id: 'mood', name: '걱정 비율', kicker: 'PART 1  반려인의 고민 · 감성', title: '반려인 질문 10건 중 6건에는 걱정이 묻어 있다', source: '출처: analysis/findings.md F1 · VADER 점수 + 불안 어휘 사전 조합 라벨 · 표본 47건(방향성 지표)' },
+    { id: 'cats', name: '고민 카테고리', kicker: 'PART 1  반려인의 고민 · 카테고리', title: '가장 큰 고민은 질병·동물병원, 질문 3건 중 1건이다', source: '출처: analysis/findings.md F2 · 주 카테고리 기준(글 1건 = 1카테고리)' },
+    { id: 'neg', name: '카테고리별 부정', kicker: 'PART 1  반려인의 고민 · 카테고리별 감성', title: '합사·행동 질문의 77.8%가 부정적, 케이지는 20.0%다', source: '출처: analysis/findings.md F3 · 표본 5건 이상 카테고리만 비교' },
+    { id: 'kw', name: '키워드', kicker: 'PART 1  반려인의 고민 · 키워드', title: "가장 많이 쓴 단어는 'vet'(동물병원), 51회다", source: '출처: data/processed/2026-10-23_gp-analysis.json · 불용어 제거 후 빈도 (전체 2,638토큰)' },
+    { id: 'tier', name: '야채 티어표', kicker: 'PART 2  기니피그의 기쁨 · 야채 티어', title: 'S티어는 옥수수 껍질·엔다이브·멜론·포도·파슬리·키위', source: '출처: findings J1 · 점수 = (열광×2 + 좋아함 − 골라먹음 − 거부×2) ÷ (언급 + 2) · 언급 4회 이상 38종' },
+    { id: 'pop', name: '자주 먹는 채소', kicker: 'PART 2  기니피그의 기쁨 · 자주 오르는 채소', title: '자주 오르는 채소 9개 중 주키니만 점수가 마이너스다', source: '출처: findings J1–J2 · 언급 30회 이상 채소 · 주키니 32회 중 거부 15회' },
+    { id: 'trig', name: '팝코닝 트리거', kicker: 'PART 2  기니피그의 기쁨 · 팝코닝', title: '팝코닝은 간식 시간(25)과 청소 직후(24)에 가장 많이 터진다', source: '출처: findings J3 · 팝코닝 언급 140문단 중 짜증·서열 맥락 12문단 제외' },
+    { id: 'words', name: '리액션 단어', kicker: 'PART 2  기니피그의 기쁨 · 리액션 단어', title: "반려인이 가장 많이 쓴 리액션은 'popcorn', 228회다", source: '출처: data/processed/2026-10-23_joy-reaction-words.json · 931문단 전체 빈도' },
+    { id: 'wheek', name: '윅윅 트리거', kicker: 'PART 2  기니피그의 기쁨 · 윅윅 울음', title: '윅윅은 밥 시간(21)과 봉지 바스락 소리(20)에 터진다', source: '출처: findings J4 · 윅윅 언급 123문단, 한 문단에 여러 트리거 가능' },
+    { id: 'set', name: '이미지 데이터', kicker: 'PART 3  기니피그 vs 햄스터 AI · 데이터셋', title: '사진 100장 중 80장으로 학습하고, 처음 보는 20장으로 검증했다', source: '출처: data/classification_results.csv · notebooks/2026-10-23_guineapig-vs-hamster-resnet18.py' },
+    { id: 'acc', name: '정확도', kicker: 'PART 3  기니피그 vs 햄스터 AI · 정확도', title: '처음 보는 사진 20장 중 17장을 맞혔다 (85%)', source: '출처: data/classification_results.csv · ImageNet 사전학습 ResNet18, 5 epoch · 95% 신뢰구간은 Wilson 방식' },
+    { id: 'cm', name: '혼동 행렬', kicker: 'PART 3  기니피그 vs 햄스터 AI · 혼동 행렬', title: '틀린 3장 중 2장은 햄스터를 기니피그로 본 경우다', source: '출처: data/classification_results.csv · 검증셋 20장 (클래스별 10장)' },
+    { id: 'conf', name: '정답 확률', kicker: 'PART 3  기니피그 vs 햄스터 AI · 확신도', title: '가장 크게 틀린 햄스터 사진의 정답 확률은 0.04였다', source: '출처: data/classification_results.csv · 정답 클래스 확률(prob_guinea_pig / prob_hamster)' },
+    { id: 'miss', name: '오분류 사진', kicker: 'PART 3  기니피그 vs 햄스터 AI · 오분류 사진', title: '틀린 사진의 공통점: 몸통이 작거나 가려졌다', source: '출처: data/classification_results.csv · 사진: Pexels / Unsplash 원본 URL' },
+    { id: 'end', dark: true, name: '정리', kicker: '정리 · SUMMARY', title: '세 가지 발견, 그리고 다음 질문', source: '출처: analysis/findings.md F1–F3 · J1–J4 · data/classification_results.csv' }
   ],
-  problems: [
-    { no: '01', head: ['관음과 감시의', '스트레스'], body: ['캠스터디·실시간 측정 앱은', '타인의 시선과 끊임없는', "상호 감시로 '도파민 소진'을", '부른다'], chip: 'BURNOUT' },
-    { no: '02', head: ['1인 가구·비대면', '고립의 심화'], body: ['원격 근무와 독학은 흔해졌지만', '혼자 공부할 때의 산만함과', '정서적 고립을 받아줄', '완충지대가 없다'], chip: 'ISOLATION' },
-    { no: '03', head: ['바디 더블링에', '대한 갈망'], body: ['누군가 곁에 있기만 해도', '집중이 오른다. 하지만 실제', '인간관계의 감정 소모는', '부담스럽다'], chip: 'BODY DOUBLING' }
-  ],
-  trends: [
-    { tag: 'ANALOG FOCUS', ko: '아날로그 집중 · 로파이 ASMR', key: true, lines: ['빗소리·모닥불 위에 타자 소리, 책장 넘김,', '숨소리를 겹친 공간의 현장감 = 청각적 닻'] },
-    { tag: 'SOFT WELLNESS', ko: '소프트 웰니스 · 버추얼 펫', lines: ["기계적 타이머 대신 '꾸이꾸이' 울음과", '자리를 비우는 펫, 통제보다 회복'] },
-    { tag: 'MICRO-GAMIFICATION', ko: '일상형 마이크로 게이미피케이션', lines: ['집중 1분 = 1XP, 머문 시간 = 0.5XP', '회원증 커스텀 · 하트 선물 · 스트릭'] }
-  ],
-  mapping: [
-    { need: ['상호 감시', '피로도 완화'], feat: ['카메라·마이크 개별 조절', '+ 가상 동물 타일 배치'], eff: ['감정 노동 없는', '심리적 안정감'] },
-    { need: ['바디 더블링', '효과 구현'], feat: ['기니피그·햄스터 친구들의', '실시간 상태 변화 (휴식·자리비움)'], eff: ['스터디 카페에 앉은 듯한', '공존감'] },
-    { need: ['지속 가능한', '공부 습관'], feat: ['뽀모도로 타이머 + 친밀도 하트', '& 만물상 코인 보상'], eff: ['장기 리텐션과', '스트릭(연속 출석) 유지'] },
-    { need: ['청각적', '집중 환경'], feat: ['울음소리 빈도 조절 +', '멀티 레이어 백색소음'], eff: ['인지 부하 감소와', '딥워크 유도'] }
-  ],
-  misclass: {
-    'hamster_044.jpg': { tag: '사람이 주인공인 구도 · 흰 털', note: ['사람이 화면 대부분을 차지하고', '작은 흰 햄스터가 안겨 있다', '→ 가장 자신 있게 틀린 사례'] },
-    'hamster_028.jpg': { tag: '구멍에서 얼굴만 빼꼼', note: ['둥근 입구에 얼굴만 보이고', '몸통이 가려졌다', '→ 체형 단서가 사라짐'] },
-    'guinea_pig_008.jpg': { tag: '초원 속 야생 개체', note: ['넓은 초원 배경에 몸이 작게', '찍힌 콜롬비아 야생 기니피그', '→ 반려 사진과 다른 맥락'] }
+  why: {
+    card: ['기니피그·햄스터 메이트가 곁에서', '함께 공부해 주는 가상 펫 스터디룸'],
+    points: ['감시 대신 조용히 곁에 있는 동행', '누가 곁에 있으면 집중이 오르는 바디 더블링', "'꾸이꾸이' 울음과 백색소음 사운드 레이어"],
+    qs: [
+      { q: '반려인은 무엇을 가장 걱정할까?', d: 'PART 1 · 포럼 질문 글 47건 · 감성·카테고리·키워드 분석' },
+      { q: '기니피그는 언제 기뻐하고, 어떤 소리를 낼까?', d: 'PART 2 · 스레드 44개 931문단 · 야채 티어·팝코닝·윅윅' },
+      { q: 'AI가 기니피그와 햄스터를 구별할 수 있을까?', d: 'PART 3 · 사진 100장 · ResNet18 전이학습' }
+    ]
   },
-  roadmap: [
-    { world: 'WORLD 1', name: '온라인 스터디룸', mode: 'ONLINE', lines: ['뽀모도로 + 기니피그 메이트 타일', '카메라·마이크 개별 조절', '백색소음 + 꾸이꾸이 레이어'] },
-    { world: 'WORLD 2', name: '플레이 & 스트릭', mode: 'ONLINE', lines: ['집중 1분 = 1XP · 머문 시간 0.5XP', '회원증 커스텀 · 하트 선물·편지', '만물상 코인 · 연속 출석'] },
-    { world: 'WORLD 3', name: 'AI 컴패니언', mode: 'ONLINE', lines: ['AI 동물어 번역기 (윅윅 트리거)', '펫 인식 85% → 데이터 확대', '맞춤형 웰니스 케어'] },
-    { world: 'WORLD 4', name: '오프라인 라운지', mode: 'OFFLINE', proposal: true, lines: ['팝업 스터디 라운지·코워킹 제휴', '회원증·피규어 굿즈', '반려인 커뮤니티 밋업'] }
-  ],
-  personas: [
-    { p: 'PLAYER 1', head: '캠스터디에 지친 Z세대', sub: '시험 · 취업 · 자격증 준비생' },
-    { p: 'PLAYER 2', head: '적막함을 덜고 싶은 원격 근무자', sub: '프리랜서 · 재택 근무자' }
+  misclass: {
+    'hamster_044.jpg': { tag: '사람이 주인공인 구도 · 흰 털', note: ['사람이 화면 대부분을 차지하고', '작은 흰 햄스터가 안겨 있다'] },
+    'hamster_028.jpg': { tag: '구멍에서 얼굴만 빼꼼', note: ['둥근 입구에 얼굴만 보이고', '몸통이 가려져 체형 단서가 없다'] },
+    'guinea_pig_008.jpg': { tag: '초원 속 야생 개체', note: ['넓은 초원에 몸이 작게 찍힌', '콜롬비아 야생 기니피그'] }
+  },
+  limits: [
+    '단일 영어권 포럼 · 규칙 기반 라벨 → 수치는 방향성 지표로 읽는다',
+    '햄스터는 이미지 데이터뿐 → 햄스터 포럼 텍스트도 같은 방식으로 모아 비교하기',
+    '검증 20장의 85%는 신뢰구간 64–95% → 사진을 늘려 다시 검증하기'
   ]
 };

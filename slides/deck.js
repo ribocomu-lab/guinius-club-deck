@@ -1,480 +1,425 @@
-// 기니어스클럽 피치 덱 — references/template/core.js의 진행도·이징·SVG 헬퍼 위에 Nintendo 2001 크롬을 얹는다.
-// 슬라이드마다 세 층: base(배경·크롬, 진입 시 1회) · dyn(빌드 모션, 매 프레임) · over(사진·마스코트, 진입 시 1회)
+// 기니피그·햄스터 데이터 리포트 — references/template의 core.js 엔진(progress·이징·SVG 헬퍼·chrome) 위에서 동작
+// 슬라이드마다 두 층: dyn(크롬 + 빌드 모션, 매 프레임) · over(사진, 진입 시 1회)
 (function () {
-  const { K, clamp, eo, eio, back, seg, r2, fmt, partial } = window.MK;
-  const C = K.C, D = window.DECK_DATA, CFG = window.DECK;
-  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  // ---------------------------------------------------------------- 그리기 헬퍼
-  const T = (x, y, s, o = {}) => `<text x="${r2(x)}" y="${r2(y)}" font-family="${o.f || K.FONT}" font-size="${o.size || 28}" font-weight="${o.w || 400}" fill="${o.fill || C.ink}" text-anchor="${o.anchor || 'start'}"${o.op !== undefined ? ` opacity="${r2(clamp(o.op))}"` : ''}${o.ls !== undefined ? ` letter-spacing="${o.ls}"` : ''}${o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw || 4}" stroke-linejoin="round" paint-order="stroke"` : ''}>${esc(s)}</text>`;
-  // 글자 폭 추정: 한글 0.95em · 공백 0.3em · 그 외 0.6em
-  const tw = (s, size) => [...String(s)].reduce((a, ch) => a + (/[가-힣]/.test(ch) ? 0.95 : ch === ' ' ? 0.3 : 0.6), 0) * size;
-  const lines = (x, y, arr, lh, o) => arr.map((s, i) => T(x, y + i * lh, s, o)).join('');
-  // 박스아트 타이포: 굵은 외곽선 + 단단한 오프셋 그림자 (DESIGN.md: display type is outlined, never flat)
-  const box = (x, y, s, o = {}) => {
-    const sh = o.shadow === undefined ? Math.max(4, (o.size || 60) * 0.07) : o.shadow;
-    const base = { f: o.f || K.DISPLAY, size: o.size || 60, w: o.w || 900, anchor: o.anchor, ls: o.ls, op: o.op };
-    return T(x + sh, y + sh, s, { ...base, fill: o.shade || C.carbon, stroke: o.shade || C.carbon, sw: o.sw || (o.size || 60) * 0.16 }) +
-      T(x, y, s, { ...base, fill: o.fill || C.white, stroke: o.stroke || C.indigo, sw: o.sw || (o.size || 60) * 0.16 });
-  };
-  const R = (x, y, w, h, fill, o = {}) => `<rect x="${r2(x)}" y="${r2(y)}" width="${r2(Math.max(0, w))}" height="${r2(Math.max(0, h))}" fill="${fill}"${o.rx ? ` rx="${o.rx}"` : ''}${o.op !== undefined ? ` opacity="${r2(clamp(o.op))}"` : ''}${o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw || 2}"` : ''}/>`;
-  const L = (x1, y1, x2, y2, c, w = 2, o = {}) => `<line x1="${r2(x1)}" y1="${r2(y1)}" x2="${r2(x2)}" y2="${r2(y2)}" stroke="${c}" stroke-width="${w}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''}${o.cap ? ` stroke-linecap="${o.cap}"` : ''}${o.op !== undefined ? ` opacity="${r2(clamp(o.op))}"` : ''}/>`;
-  const O = (cx, cy, r, fill, o = {}) => `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(Math.max(0, r))}" fill="${fill}"${o.stroke ? ` stroke="${o.stroke}" stroke-width="${o.sw || 2}"` : ''}${o.op !== undefined ? ` opacity="${r2(clamp(o.op))}"` : ''}/>`;
-  const G = (inner, o = {}) => {
-    const t = [];
-    if (o.dx || o.dy) t.push(`translate(${r2(o.dx || 0)} ${r2(o.dy || 0)})`);
-    if (o.s !== undefined) { const [cx, cy] = o.at; t.push(`translate(${r2(cx)} ${r2(cy)}) scale(${r2(Math.max(0.001, o.s))}) translate(${r2(-cx)} ${r2(-cy)})`); }
-    return `<g${t.length ? ` transform="${t.join(' ')}"` : ''}${o.op !== undefined ? ` opacity="${r2(clamp(o.op))}"` : ''}>${inner}</g>`;
-  };
-  // 금속판: 모따기(chamfer) 모서리 + 위쪽 하이라이트 + 아래 인디고 그림자선 (Elevation level 1 — Plate)
-  const plate = (x, y, w, h, o = {}) => {
-    const c = o.ch || 0, fill = o.fill || C.platinum;
-    const d = `M${x + c},${y} L${x + w},${y} L${x + w},${y + h - c} L${x + w - c},${y + h} L${x},${y + h} L${x},${y + c} Z`;
-    return `<path d="${d}" fill="${fill}" stroke="${o.edge || C.indigo}" stroke-width="2"/>` +
-      (o.pattern ? `<path d="${d}" fill="url(#${o.pattern})"/>` : '') +
-      L(x + c + 2, y + 3, x + w - 3, y + 3, C.white, 3, { op: o.hi === undefined ? 0.55 : o.hi }) +
-      L(x + 3, y + h + 3, x + w - c, y + h + 3, C.indigo, 4, { op: 0.9 });
-  };
-  // 패널 헤더: section-label-bar (격자 글리프 + 대문자 라벨)
-  const labelBar = (x, y, w, label, o = {}) => {
-    const h = o.h || 46, fill = o.fill || C.canvas, ink = o.ink || C.carbon;
-    let g = '';
-    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) g += R(x + 16 + i * 9, y + h / 2 - 8 + j * 9, 7, 7, ink);
-    return R(x, y, w, h, fill) + L(x, y + h, x + w, y + h, C.indigo, 2) + g + T(x + 46, y + h / 2 + 8, label, { size: o.size || 21, w: 700, fill: ink, ls: 1.2 });
-  };
-  const chip = (x, y, s, o = {}) => {
-    const size = o.size || 18, w = o.w || (String(s).length * size * ((o.f || K.PIXEL) === K.PIXEL ? 1.02 : 0.62) + 30), h = size + 16;
-    return R(x, y, w, h, o.fill || C.amber, { rx: o.rx === undefined ? 2 : o.rx }) + L(x + 2, y + 2, x + w - 2, y + 2, C.white, 2, { op: 0.5 }) +
-      T(x + w / 2, y + h / 2 + size * 0.36, s, { f: o.f || K.PIXEL, size, w: 700, fill: o.ink || C.carbon, anchor: 'middle', ls: o.ls === undefined ? 1 : o.ls });
-  };
-  const arrowDisc = (cx, cy, r, o = {}) => O(cx, cy, r, o.fill || C.signal) + O(cx, cy - r * 0.15, r * 0.8, C.white, { op: 0.18 }) +
-    `<path d="M${cx - r * 0.25},${cy - r * 0.4} L${cx + r * 0.35},${cy} L${cx - r * 0.25},${cy + r * 0.4}" fill="none" stroke="${C.white}" stroke-width="${r * 0.28}" stroke-linecap="round" stroke-linejoin="round"/>`;
-
-  // 픽셀 기니피그 마스코트 (A 앰버 몸, W 흰 무늬, K 눈, N 코, E 귀, F 발)
-  const PIG = [
-    '.....AAAAA....',
-    '...AAWWWAAAA..',
-    '..AAWWWWWAAAE.',
-    '.AAAWWWWAAAKAA',
-    '.AAAAWWAAAAAAN',
-    'AAAAAAAAAAAAA.',
-    'AAAAAAAAAAAA..',
-    '.AAAAAAAAAA...',
-    '..F..F..F.F...'
-  ];
-  const PIGC = { A: C.amber, W: C.white, K: C.carbon, N: C.primary, E: '#f7a6ae', F: C.carbon, S: C.gold };
-  const pig = (x, y, px, o = {}) => {
-    let s = '';
-    PIG.forEach((row, j) => [...row].forEach((ch, i) => {
-      if (ch === '.') return;
-      const ii = o.flip ? row.length - 1 - i : i;
-      let c = PIGC[ch];
-      if (ch === 'A' && j >= 6) c = C.gold; // 배 쪽 음영
-      if (o.sleep && ch === 'K') c = C.gold;
-      s += R(x + ii * px, y + j * px, px + 0.5, px + 0.5, c);
-    }));
-    return s;
-  };
-  const bubble = (x, y, w, h, arr, o = {}) => {
-    const tx = o.tail === 'left' ? x + 40 : x + w - 90;
-    return `<path d="M${tx},${y + h - 2} L${tx + 24},${y + h + 34} L${tx + 46},${y + h - 2} Z" fill="${C.white}" stroke="${C.carbon}" stroke-width="3"/>` +
-      R(x, y, w, h, C.white, { rx: 22, stroke: C.carbon, sw: 3 }) + R(tx + 3, y + h - 5, 40, 8, C.white) +
-      lines(x + 30, y + 52, arr, o.lh || 42, { size: o.size || 30, w: 700, fill: C.carbon });
-  };
-
-  const DEFS = `<defs>
-    <pattern id="brush" width="16" height="6" patternUnits="userSpaceOnUse"><rect width="16" height="1" fill="#ffffff" opacity=".07"/><rect y="3" width="16" height="1" fill="#21242e" opacity=".05"/></pattern>
-    <pattern id="ht" width="10" height="10" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.6" fill="#ffffff" opacity=".08"/><circle cx="8" cy="8" r="1.6" fill="#ffffff" opacity=".05"/></pattern>
-    <pattern id="circuit" width="160" height="160" patternUnits="userSpaceOnUse"><path d="M0 40 H60 L80 60 H160 M20 0 V30 L40 50 V160 M100 0 V20 L120 40 V100 L140 120 H160 M0 130 H50 L70 110 H100" fill="none" stroke="#ffffff" stroke-width="2" opacity=".18"/><circle cx="60" cy="40" r="5" fill="#ffffff" opacity=".22"/><circle cx="120" cy="100" r="5" fill="#ffffff" opacity=".22"/><circle cx="40" cy="160" r="4" fill="#ffffff" opacity=".2"/></pattern>
-    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0 H0 V40" fill="none" stroke="#3d4f97" stroke-width="1" opacity=".18"/></pattern>
-  </defs>`;
-
-  // ---------------------------------------------------------------- 크롬 (템플릿 그리드 계승: 좌측 x=100, 키커·제목 상단, 출처선 y=988)
-  const N = CFG.slides.length;
-  const chromeBase = (i) => {
-    const sl = CFG.slides[i];
-    let s = R(0, 0, 1920, 1080, C.canvas) + R(0, 0, 1920, 1080, 'url(#brush)');
-    // nav-bar: 카본 + 하프톤, 로고 필, 금빛 메뉴 단어
-    s += R(0, 0, 1920, 76, C.carbon) + R(0, 0, 1920, 76, 'url(#ht)') + L(0, 76, 1920, 76, C.black || '#000', 2, { op: 0.5 });
-    s += R(40, 13, 262, 50, C.white, { rx: 25, stroke: C.primary, sw: 4 }) + T(171, 51, CFG.brand, { f: K.DISPLAY, size: 31, w: 900, fill: C.primary, anchor: 'middle', ls: 1 });
-    let x = 360;
-    CFG.nav.forEach((n, k) => {
-      const on = k === sl.nav, w = (n.length + 3) * 15.8 + 26;
-      s += `<g data-go-nav="${k}" style="cursor:pointer">`;
-      if (on) s += R(x - 14, 16, w, 44, C.amber, { rx: 2 }) + L(x - 12, 18, x + w - 16, 18, C.white, 2, { op: 0.55 });
-      s += T(x, 47, `${String(k + 1).padStart(2, '0')} ${n}`, { f: 'Arial, sans-serif', size: 22, w: 700, fill: on ? C.carbon : C.gold, ls: 1 });
-      s += R(x - 14, 10, w, 56, 'transparent') + '</g>';
-      x += w + 18;
-    });
-    s += chip(1690, 21, 'STUDY ROOM', { size: 16, fill: C.signal, ink: C.white, w: 190 });
-    // subnav-strip: 페일 스카이 + 키커
-    s += R(0, 76, 1920, 42, C.soft) + L(0, 118, 1920, 118, C.indigo, 2);
-    s += T(100, 105, sl.kicker, { size: 21, w: 700, fill: C.carbon, ls: 0.5 });
-    s += T(1820, 105, '기니어스클럽 · 혼자지만 외롭지 않은 몰입', { size: 19, w: 600, fill: C.indigo, anchor: 'end' });
-    // footer-bar: 카본 모따기 슬랩
-    s += `<path d="M0,988 H1900 L1920,1008 V1080 H0 Z" fill="${C.carbon}"/>` + R(0, 988, 1920, 92, 'url(#ht)') + L(0, 988, 1920, 988, C.indigo, 3);
-    s += T(100, 1042, sl.source, { size: 21, fill: C.soft });
-    s += chip(1600, 1018, `${String(i + 1).padStart(2, '0')} / ${String(N).padStart(2, '0')}`, { size: 17, w: 120, fill: C.amber });
-    return s;
-  };
-  const title = (i, p) => {
-    const sl = CFG.slides[i]; if (!sl.title) return '';
-    const e = eo(seg(p, 0, 0.35));
-    return G(box(100, 212, sl.title, { f: K.FONT, size: 56, w: 900, sw: 10, shadow: 5, op: e }), { dy: (1 - e) * 24 });
-  };
-
-  // ---------------------------------------------------------------- 슬라이드
-  const S = [];
-
-  // 01 표지 — 히어로 판 위 박스아트 워드마크가 마스크에서 솟아오름 (템플릿 FX12 계승)
-  S[0] = {
-    base: () => plate(100, 150, 1720, 610, { fill: C.lavender, ch: 34, pattern: 'circuit' }),
-    dyn: (p) => {
-      const e1 = eo(seg(p, 0.05, 0.5)), e2 = eo(seg(p, 0.2, 0.62)), e3 = eo(seg(p, 0.4, 0.8));
-      let s = `<defs><clipPath id="m1"><rect x="100" y="250" width="1200" height="320"/></clipPath></defs>`;
-      s += G(chip(160, 200, 'VIRTUAL MATE STUDY ROOM', { size: 18, w: 380 }), { op: e1 });
-      s += `<g clip-path="url(#m1)">${G(box(150, 395, 'GUINIUS', { size: 172, sw: 20, shadow: 11 }), { dy: (1 - e1) * 200 })}${G(box(150, 552, 'CLUB', { size: 172, sw: 20, shadow: 11, stroke: C.primary }), { dy: (1 - e2) * 200 })}</g>`;
-      s += G(T(156, 652, '기니어스클럽', { size: 62, w: 900, fill: C.carbon }) + T(156, 716, '차세대 가상 메이트 스터디룸 — 혼자지만 외롭지 않은 몰입', { size: 32, w: 700, fill: C.indigo }), { op: e3, dy: (1 - e3) * 20 });
-      // 서비스 소개 3판
-      CFG.slides && ['GENTLE PRESENCE', 'BODY DOUBLING', 'MICRO-GAMIFICATION'].forEach((tag, k) => {
-        const e = back(seg(p, 0.5 + k * 0.08, 0.84 + k * 0.08)), x = 100 + k * 586;
-        const ko = ['비침해적 동행', '바디 더블링', '마이크로 게이미피케이션'][k];
-        const d = ['감시 대신, 곁에 있는 가상 메이트', '누군가 옆에 있으면 집중이 오른다', '집중 1분 = 경험치 1, 몰입을 놀이로'][k];
-        s += G(plate(x, 800, 548, 150, { fill: C.white }) + labelBar(x, 800, 548, tag, { fill: C.peri, size: 19 }) +
-          T(x + 24, 890, ko, { size: 30, w: 800, fill: C.carbon }) + T(x + 24, 930, d, { size: 23, fill: C.indigo }), { s: e, at: [x + 274, 875], op: clamp(e) });
-      });
-      s += G(bubble(1290, 214, 470, 128, ['꾸이꾸이! 오늘도', '옆에서 같이 공부할게요'], { size: 30 }), { s: back(seg(p, 0.45, 0.85)), at: [1520, 300] });
-      return s;
-    },
-    over: () => mascot(1336, 410, 24)
-  };
-
-  // 02 문제 — 세 개의 판이 위에서 떨어져 자리 잡음
-  S[1] = {
-    dyn: (p) => {
-      let s = '';
-      CFG.problems.forEach((q, k) => {
-        const x = 100 + k * 590, e = eo(seg(p, 0.12 + k * 0.12, 0.6 + k * 0.12)), y = 268 - (1 - e) * 60;
-        s += G(plate(x, y, 540, 590, { fill: k === 2 ? C.ice : C.platinum, ch: 22 }) + labelBar(x, y, 540, `PAIN ${q.no}`, { fill: k === 2 ? C.amber : C.canvas }) +
-          box(x + 36, y + 190, q.no, { size: 110, sw: 14, shadow: 7, stroke: k === 2 ? C.gold : C.indigo }) +
-          lines(x + 36, y + 290, q.head, 54, { size: 44, w: 900, fill: C.carbon }) +
-          L(x + 36, y + 372, x + 504, y + 372, C.mindigo, 2, { dash: '2 7', cap: 'round' }) +
-          lines(x + 36, y + 422, q.body, 38, { size: 26, fill: C.indigo, w: 500 }) +
-          chip(x + 36, y + 546, q.chip, { size: 17, fill: k === 2 ? C.signal : C.amber, ink: k === 2 ? C.white : C.carbon }), { op: e });
-      });
-      const e = eo(seg(p, 0.6, 1));
-      s += G(R(100, 892, 1720, 70, C.carbon) + R(100, 892, 1720, 70, 'url(#ht)') +
-        T(140, 938, '그래서 필요한 것:', { size: 28, w: 700, fill: C.soft }) +
-        T(380, 938, '사람의 감시 없이, 곁에 있는 존재감', { size: 30, w: 900, fill: C.amber }) +
-        arrowDisc(1772, 927, 20), { op: e, dx: (1 - e) * -40 });
-      return s;
-    }
-  };
-
-  // 03 트렌드 — 왼쪽 큰 히어로(패럴렐 플레이 × 바디더블링), 오른쪽 세 트렌드 판
-  const tile = (x, y, w, h, label, kind, e) => {
-    let s = plate(x, y, w, h, { fill: kind === 'you' ? C.white : C.ice, hi: 0.3 });
-    if (kind === 'pig') s += pig(x + w / 2 - 56, y + 24, 8);
-    if (kind === 'sleep') s += pig(x + w / 2 - 56, y + 24, 8, { sleep: true }) + T(x + w - 40, y + 50, 'z z', { f: K.PIXEL, size: 22, fill: C.indigo, anchor: 'end' });
-    if (kind === 'you') s += O(x + w / 2, y + 44, 26, C.peri) + R(x + w / 2 - 50, y + 76, 100, 32, C.peri, { rx: 16 }) + T(x + w / 2, y + 98, '공부 중', { size: 18, w: 700, fill: C.carbon, anchor: 'middle' });
-    if (kind === 'off') s += R(x + 20, y + 20, w - 40, h - 70, C.mindigo) + T(x + w / 2, y + h / 2 - 4, 'CAM OFF', { f: K.PIXEL, size: 22, fill: C.soft, anchor: 'middle' });
-    s += R(x, y + h - 40, w, 40, C.carbon, { op: 0.85 }) + T(x + 14, y + h - 13, label, { size: 19, w: 700, fill: C.white });
-    if (kind !== 'off') s += O(x + w - 22, y + h - 20, 7, kind === 'sleep' ? C.amber : '#4cd964');
-    return G(s, { s: e, at: [x + w / 2, y + h / 2], op: clamp(e) });
-  };
-  S[2] = {
-    base: () => plate(100, 268, 860, 690, { fill: C.teal, ch: 28, pattern: 'circuit', hi: 0.35 }),
-    dyn: (p) => {
-      let s = chip(136, 296, 'KEY TREND', { size: 17, w: 170 });
-      s += G(box(136, 400, 'PARALLEL PLAY', { size: 64, sw: 10, shadow: 6 }) + box(136, 474, '× BODY DOUBLING', { size: 52, sw: 9, shadow: 5, stroke: C.carbon }), { op: eo(seg(p, 0.05, 0.4)) });
-      s += G(lines(138, 530, ['대화 없이 같은 공간에서 각자의 일에 몰입하는 Z세대식 공존.', '마이크 볼륨·화각 숨기기로 관계의 밀도를 유저가 직접 정한다.'], 38, { size: 25, w: 600, fill: C.white }), { op: eo(seg(p, 0.2, 0.55)) });
-      [['나', 'you'], ['메이트 · 집중 중', 'pig'], ['친구', 'off'], ['메이트 · 자리비움', 'sleep']].forEach(([lb, kd], k) => {
-        s += tile(138 + (k % 2) * 400, 604 + Math.floor(k / 2) * 172 - 0, 380, 156, lb, kd, back(seg(p, 0.3 + k * 0.08, 0.62 + k * 0.08)));
-      });
-      CFG.trends.forEach((t, k) => {
-        const y = 268 + k * 236, e = eo(seg(p, 0.2 + k * 0.12, 0.7 + k * 0.12));
-        s += G(plate(1000, y, 820, 214, { fill: t.key ? C.white : C.platinum }) + labelBar(1000, y, 820, t.tag, { fill: t.key ? C.amber : C.peri }) +
-          (t.key ? chip(1660, y + 8, 'KEY', { size: 16, w: 140, fill: C.signal, ink: C.white }) : '') +
-          T(1030, y + 104, t.ko, { size: 34, w: 900, fill: C.carbon }) + lines(1030, y + 150, t.lines, 36, { size: 24, fill: C.indigo, w: 500 }), { op: e, dx: (1 - e) * 60 });
-      });
-      return s;
-    }
-  };
-
-  // 04 매핑 — 표 행이 차례로 미끄러져 들어오고 화살표 디스크가 튐
-  S[3] = {
-    dyn: (p) => {
-      let s = '';
-      const cols = [[100, 470, 'NEED · 유저 니즈'], [650, 640, 'FEATURE · 기니어스클럽 솔루션'], [1370, 450, 'EFFECT · 기대 효과']];
-      cols.forEach(([x, w, lb]) => s += labelBar(x, 272, w, lb, { fill: C.carbon, ink: C.soft }));
-      CFG.mapping.forEach((m, k) => {
-        const y = 340 + k * 156, e = eo(seg(p, 0.1 + k * 0.12, 0.6 + k * 0.12));
-        let r = plate(100, y, 470, 136, { fill: C.peri }) + lines(132, y + 60, m.need, 42, { size: 32, w: 900, fill: C.carbon });
-        r += plate(650, y, 640, 136, { fill: C.white }) + lines(682, y + 60, m.feat, 40, { size: 28, w: 800, fill: C.carbon });
-        r += plate(1370, y, 450, 136, { fill: C.platinum }) + lines(1402, y + 60, m.eff, 40, { size: 27, w: 600, fill: C.indigo });
-        s += G(r, { op: e, dx: (1 - e) * -50 });
-        s += G(arrowDisc(610, y + 68, 24), { s: back(seg(p, 0.3 + k * 0.12, 0.6 + k * 0.12)), at: [610, y + 68] });
-        s += G(arrowDisc(1330, y + 68, 24), { s: back(seg(p, 0.34 + k * 0.11, 0.62 + k * 0.11)), at: [1330, y + 68] });
-      });
-      return s;
-    }
-  };
-
-  // 05 인사이트 ① — 큰 수치 카운트업 + 47칸 와플 (템플릿 FX10·FX04 계승)
-  S[4] = {
-    dyn: (p) => {
-      const c = D.care, e = eo(seg(p, 0, 0.7));
-      let s = plate(100, 268, 1060, 600, { fill: C.white, ch: 24 }) + labelBar(100, 268, 1060, `CARE ANXIETY · 반려인 질문 ${c.posts}건의 감성`);
-      s += box(140, 540, fmt(c.neg_pct * e, c.neg_pct) + '%', { size: 210, sw: 18, shadow: 10, stroke: C.gred });
-      s += T(146, 610, `질문 글 ${c.posts}건 중 ${c.neg}건에 불안·걱정이 드러났다`, { size: 30, w: 800, fill: C.carbon });
-      const cell = 40, g = 8, ox = 146, oy = 660;
-      for (let i = 0; i < c.posts; i++) {
-        const x = ox + (i % 20) * (cell + g), y = oy + Math.floor(i / 20) * (cell + g), on = i < c.neg;
-        const k = back(clamp((p * 1.4 - i / c.posts) * 4));
-        const sz = cell * (on ? clamp(k, 0.2, 1.2) : 1), off = (cell - sz) / 2;
-        s += R(x + off, y + off, sz, sz, on ? C.gred : C.platinum, { stroke: on ? C.carbon : C.hair, sw: 1.5 });
-      }
-      s += R(ox, 822, 18, 18, C.gred) + T(ox + 28, 838, '불안·부정', { size: 20, fill: C.indigo }) + R(ox + 150, 822, 18, 18, C.platinum, { stroke: C.hair }) + T(ox + 178, 838, '중립·긍정', { size: 20, fill: C.indigo });
-      [[fmt(c.top_cat_pct * eo(seg(p, 0.2, 0.8)), c.top_cat_pct) + '%', '가장 많은 고민', '질병 · 동물병원'],
-       [fmt(c.bond_neg_pct * eo(seg(p, 0.3, 0.9)), c.bond_neg_pct) + '%', '부정 비중이 가장 높은 주제', '행동 · 합사 글'],
-       [Math.round(c.top_kw_n * eo(seg(p, 0.4, 1))) + '회', '가장 많이 나온 단어', `'${c.top_kw}' 동물병원`]].forEach(([v, a, b], k) => {
-        const y = 268 + k * 204, e2 = eo(seg(p, 0.25 + k * 0.12, 0.7 + k * 0.12));
-        s += G(plate(1200, y, 620, 184, { fill: k === 0 ? C.ice : C.platinum }) + T(1232, y + 46, a, { size: 22, w: 700, fill: C.indigo }) +
-          box(1232, y + 140, v, { size: 74, sw: 9, shadow: 5 }) + T(1790, y + 138, b, { size: 24, w: 700, fill: C.carbon, anchor: 'end' }), { op: e2, dx: (1 - e2) * 50 });
-      });
-      const e3 = eo(seg(p, 0.65, 1));
-      s += G(R(100, 892, 1720, 70, C.carbon) + R(100, 892, 1720, 70, 'url(#ht)') + chip(124, 909, 'PRODUCT HINT', { size: 16, w: 210 }) +
-        T(360, 938, "돌봄의 긴장을 덜어 주는 '소프트 웰니스' 톤 — 경쟁·감시가 아닌 안심과 회복", { size: 27, w: 700, fill: C.white }), { op: e3 });
-      return s;
-    }
-  };
-
-  // 06 인사이트 ② — 팝코닝 트리거 가로 막대 (템플릿 FX02 계승) + 윅윅 트리거
-  S[5] = {
-    dyn: (p) => {
-      const j = D.joy;
-      let s = plate(100, 268, 1080, 600, { fill: C.white, ch: 24 }) + labelBar(100, 268, 1080, `POPCORN TRIGGER · 팝코닝을 부른 순간 TOP ${j.triggers.length}`);
-      const max = d3max(j.triggers.map((t) => t.n)), bx = 470, bw = 600;
-      j.triggers.forEach((t, k) => {
-        const y = 348 + k * 84, e = eo(seg(p, 0.08 + k * 0.08, 0.6 + k * 0.08));
-        s += T(130, y + 34, t.ko, { size: 27, w: k === 0 ? 900 : 700, fill: C.carbon });
-        s += R(bx, y + 4, bw, 40, C.platinum, { stroke: C.hair, sw: 1 });
-        const w = bw * t.n / max * e, wi = w * t.intense / t.n;
-        s += R(bx, y + 4, w, 40, k === 0 ? C.indigo : C.peri) + R(bx, y + 4, wi, 40, C.carbon) + L(bx, y + 6, bx + w, y + 6, C.white, 2, { op: 0.4 });
-        s += T(1150, y + 38, Math.round(t.n * e) + '회', { f: K.NUM, size: 34, w: 900, fill: k === 0 ? C.indigo : C.carbon, anchor: 'end' });
-      });
-      s += R(470, 846, 18, 18, C.carbon) + T(498, 862, '격렬한 묘사 동반', { size: 19, fill: C.indigo }) + R(680, 846, 18, 18, C.peri) + T(708, 862, '그 외 언급 (문단 수)', { size: 19, fill: C.indigo });
-      // 오른쪽 레일: 윅윅
-      const e2 = eo(seg(p, 0.25, 0.75));
-      let r = plate(1220, 268, 600, 600, { fill: C.carbon, ch: 24, hi: 0.15 }) + R(1220, 268, 600, 600, 'url(#ht)') + labelBar(1220, 268, 600, 'WHEEK · 윅윅이 터지는 소리', { fill: C.amber });
-      r += T(1252, 372, `${fmt(j.paragraphs, j.paragraphs)}문단 · ${j.threads}스레드 분석`, { size: 22, w: 600, fill: C.soft });
-      const wm = d3max(j.wheek.map((w) => w.n));
-      j.wheek.forEach((w, k) => {
-        const y = 412 + k * 108, ek = eo(seg(p, 0.32 + k * 0.09, 0.7 + k * 0.09));
-        r += T(1252, y + 28, w.ko, { size: 25, w: 700, fill: C.white }) + R(1252, y + 46, 440 * w.n / wm * ek, 26, k === 0 ? C.amber : C.mindigo) +
-          T(1790, y + 68, Math.round(w.n * ek), { f: K.NUM, size: 30, w: 900, fill: k === 0 ? C.amber : C.soft, anchor: 'end' });
-      });
-      s += G(r, { op: e2, dx: (1 - e2) * 50 });
-      const e3 = eo(seg(p, 0.6, 1));
-      const hints = [['팝코닝', '보상 모먼트'], ['윅윅', '청각적 닻 · 꾸이꾸이'], ['친구 효과', '혼자 두지 않는 공존']];
-      s += G(R(100, 892, 1720, 70, C.carbon) + R(100, 892, 1720, 70, 'url(#ht)') + chip(124, 909, 'PRODUCT HINT', { size: 16, w: 210 }) +
-        hints.map(([a, b], k) => T(370 + k * 490, 938, `${a} →`, { size: 26, w: 700, fill: C.soft }) + T(370 + k * 490 + tw(`${a} →`, 26) + 14, 938, b, { size: 26, w: 900, fill: C.amber })).join(''), { op: e3 });
-      return s;
-    }
-  };
-  const d3max = (a) => Math.max(...a, 1);
-
-  // 07 AI 정확도 — 85% 카운트업 + 신뢰구간 막대 + 혼동행렬
-  S[6] = {
-    dyn: (p) => {
-      const a = D.ai, e = eo(seg(p, 0, 0.7));
-      let s = plate(100, 268, 940, 690, { fill: C.white, ch: 24 }) + labelBar(100, 268, 940, 'VALIDATION ACCURACY · 처음 보는 사진으로 채점');
-      s += box(140, 560, fmt(a.val_acc * 100 * e, 85) + '%', { size: 260, sw: 22, shadow: 12, stroke: C.indigo });
-      s += T(150, 628, `검증 ${a.val_n}장 중 ${Math.round(a.val_correct * e)}장 정답 · 정답일 때 평균 확신도 ${Math.round(a.val_conf_correct * 100)}%`, { size: 27, w: 700, fill: C.carbon });
-      // 95% 신뢰구간 막대
-      const x0 = 150, x1 = 990, X = (v) => x0 + (x1 - x0) * v, ec = eo(seg(p, 0.35, 0.85));
-      s += T(150, 690, '95% 신뢰구간 — 표본 20장이라 폭이 넓다', { size: 22, w: 700, fill: C.indigo });
-      s += R(x0, 712, x1 - x0, 30, C.platinum, { stroke: C.hair, sw: 1 });
-      s += R(X(a.ci_lo), 712, (X(a.ci_hi) - X(a.ci_lo)) * ec, 30, C.peri);
-      s += L(X(a.val_acc), 702, X(a.val_acc), 752, C.carbon, 5, { op: ec });
-      [0, 0.5, 1].forEach((v) => s += T(X(v), 776, Math.round(v * 100) + '%', { f: K.NUM, size: 20, fill: C.indigo, anchor: 'middle' }));
-      s += T(X(a.ci_lo), 700, Math.round(a.ci_lo * 100) + '%', { f: K.NUM, size: 22, fill: C.indigo, anchor: 'middle', op: ec }) + T(X(a.ci_hi), 700, Math.round(a.ci_hi * 100) + '%', { f: K.NUM, size: 22, fill: C.indigo, anchor: 'middle', op: ec });
-      const e4 = eo(seg(p, 0.6, 1));
-      s += G(plate(150, 806, 840, 124, { fill: C.ice }) + chip(172, 826, 'CHECK', { size: 15, w: 110, fill: C.signal, ink: C.white }) +
-        T(300, 850, `학습셋은 ${a.train_correct}/${a.train_n} = ${Math.round(a.train_acc * 100)}% — 외운 것과 아는 것은 다르다.`, { size: 24, w: 800, fill: C.carbon }) +
-        T(172, 900, '그래서 성능은 학습에 쓰지 않은 검증셋 기준으로만 이야기한다.', { size: 23, fill: C.indigo }), { op: e4 });
-      // 혼동행렬
-      const ox = 1080, oy = 268;
-      let m = plate(ox, oy, 740, 690, { fill: C.platinum, ch: 24 }) + labelBar(ox, oy, 740, 'CONFUSION MATRIX · 검증셋 20장');
-      m += T(ox + 470, oy + 100, '모델의 예측', { size: 22, w: 700, fill: C.indigo, anchor: 'middle' });
-      m += T(ox + 330, oy + 140, '기니피그', { size: 24, w: 800, fill: C.carbon, anchor: 'middle' }) + T(ox + 590, oy + 140, '햄스터', { size: 24, w: 800, fill: C.carbon, anchor: 'middle' });
-      m += `<text transform="translate(${ox + 50} ${oy + 380}) rotate(-90)" font-family="${K.FONT}" font-size="22" font-weight="700" fill="${C.indigo}" text-anchor="middle">실제 정답</text>`;
-      m += T(ox + 190, oy + 260, '기니피그', { size: 24, w: 800, fill: C.carbon, anchor: 'end' }) + T(ox + 190, oy + 510, '햄스터', { size: 24, w: 800, fill: C.carbon, anchor: 'end' });
-      const cells = [['guinea_pig->guinea_pig', 0, 0], ['guinea_pig->hamster', 1, 0], ['hamster->guinea_pig', 0, 1], ['hamster->hamster', 1, 1]];
-      cells.forEach(([key, cx, cy], k) => {
-        const v = a.cm[key], good = cx === cy, x = ox + 210 + cx * 260, y = oy + 160 + cy * 250, ek = back(seg(p, 0.3 + k * 0.08, 0.65 + k * 0.08));
-        m += G(plate(x, y, 240, 230, { fill: good ? C.indigo : '#f3c7c9', edge: good ? C.carbon : C.gred }) +
-          box(x + 120, y + 145, Math.round(v * clamp(ek)), { size: 110, sw: 12, shadow: 6, anchor: 'middle', stroke: good ? C.carbon : C.gred }) +
-          T(x + 120, y + 200, good ? '정답' : '오답', { size: 22, w: 800, fill: good ? C.soft : C.gred, anchor: 'middle' }), { s: ek, at: [x + 120, y + 115] });
-      });
-      m += T(ox + 470, oy + 672, `데이터 ${a.total}장 (클래스별 ${a.per_class}) · Pexels ${a.sources.pexels} / Unsplash ${a.sources.unsplash}`, { size: 20, fill: C.indigo, anchor: 'middle' });
-      s += G(m, { op: eo(seg(p, 0.15, 0.55)) });
-      return s;
-    }
-  };
-
-  // 08 오분류 — 사진 카드 3장, 확신도 게이지가 차오름
-  const MIS = () => D.ai.wrong.map((w) => ({ ...w, ...(CFG.misclass[w.file] || { tag: '', note: [] }) }));
+  const { K, clamp, eo, eio, back, seg, r2, fmt, txt, rect, line, circ, progress, chrome } = window.MK;
+  const C = K.C, D = window.DECK_DATA, CFG = window.DECK, SL = CFG.slides;
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // 글자 폭 추정(px) — 칩·라벨 배치용
+  const tw = (s, size, num) => [...String(s)].reduce((a, ch) => a + size * (/[가-힣]/.test(ch) ? 0.96 : /\s/.test(ch) ? 0.26 : num ? 0.46 : /[A-Z0-9%]/.test(ch) ? 0.62 : 0.5), 0);
+  const g = (op, body, tr) => `<g${op !== undefined ? ` opacity="${r2(clamp(op))}"` : ''}${tr ? ` transform="${tr}"` : ''}>${body}</g>`;
+  const up = (e, d = 24) => `translate(0 ${r2((1 - e) * d)})`;
   const KO = { guinea_pig: '기니피그', hamster: '햄스터' };
-  S[7] = {
-    base: () => MIS().map((m, k) => {
-      const x = 100 + k * 590;
-      return plate(x, 268, 540, 610, { fill: C.white, ch: 20 }) + R(x + 20, 288, 500, 290, C.carbon) + T(x + 270, 440, 'IMAGE', { f: K.PIXEL, size: 24, fill: C.mindigo, anchor: 'middle' });
-    }).join(''),
-    dyn: (p) => {
-      let s = '';
-      MIS().forEach((m, k) => {
-        const x = 100 + k * 590, e = eo(seg(p, 0.15 + k * 0.12, 0.6 + k * 0.12));
-        let c = R(x + 20, 590, 500, 52, C.carbon) + T(x + 40, 625, `정답 ${KO[m.true]}`, { size: 24, w: 700, fill: C.soft }) + arrowDisc(x + 230, 616, 15) +
-          T(x + 260, 625, `예측 ${KO[m.pred]}`, { size: 24, w: 900, fill: C.amber });
-        c += T(x + 24, 690, m.tag, { size: 30, w: 900, fill: C.carbon });
-        c += T(x + 24, 732, '확신도', { size: 20, w: 700, fill: C.indigo }) + R(x + 110, 714, 330, 24, C.platinum, { stroke: C.hair, sw: 1 }) +
-          R(x + 110, 714, 330 * m.conf * e, 24, m.conf > 0.9 ? C.gred : C.peri) + T(x + 516, 734, Math.round(m.conf * 100 * e) + '%', { f: K.NUM, size: 26, w: 900, fill: m.conf > 0.9 ? C.gred : C.carbon, anchor: 'end' });
-        c += lines(x + 24, 782, m.note, 32, { size: 22, fill: C.indigo, w: 500 });
-        s += G(c, { op: e, dy: (1 - e) * 20 });
+  const f1 = (v) => v.toFixed(1); // 퍼센트는 소수 첫째 자리 고정(34.0%)
+
+  // 가로 막대 행(템플릿 02 계승): 라벨 2줄 + 트랙 + 막대 + 오른쪽 수치
+  const hbar = (p, i, y, o) => {
+    const e = eo(seg(p, 0.08 + i * 0.08, 0.6 + i * 0.08)), hi = o.hi;
+    let s = txt(100, y + (o.sub ? 22 : 36), esc(o.label), { size: 32, w: 700 }) + txt(100, y + 60, esc(o.sub), { size: 24, fill: hi ? C.a : C.muted, w: hi ? 600 : 400 });
+    s += rect(o.bx, y, o.bw, o.h, C.track) + rect(o.bx, y, o.bw * o.v / o.max * e, o.h, hi ? C.a : C.b);
+    s += txt(1820, y + 42, (o.dec ? (o.v * e).toFixed(o.dec) : fmt(o.v * e, o.v)) + `<tspan font-size="${o.uSize || 30}" font-family="${K.FONT}" font-weight="500" dx="6">${o.unit}</tspan>`, { size: 60, w: 600, num: 1, anchor: 'end', fill: hi ? C.a : C.ink });
+    return s;
+  };
+
+  const S = {};
+
+  // ── 표지 (템플릿 12 타이틀 마스크, 두 줄)
+  S.cover = (p, d) => {
+    const e1 = eo(seg(p, 0.05, 0.5)), e1b = eo(seg(p, 0.15, 0.6)), e2 = eo(seg(p, 0.35, 0.8)), e3 = eo(seg(p, 0.5, 1));
+    let s = `<defs><clipPath id="cv1"><rect x="0" y="300" width="1920" height="170"/></clipPath><clipPath id="cv2"><rect x="0" y="470" width="1920" height="170"/></clipPath><clipPath id="cv3"><rect x="0" y="672" width="1920" height="70"/></clipPath></defs>`;
+    s += txt(100, 132, d.kicker, { size: 28, w: 500, fill: C.b, ls: '4' }) + txt(1820, 132, d.source, { size: 28, num: 1, fill: C.b, anchor: 'end' });
+    s += `<g clip-path="url(#cv1)"><g transform="translate(0 ${r2((1 - e1) * 170)})">${txt(94, 440, d.title[0], { size: 140, w: 800, fill: C.paper, ls: '-5' })}</g></g>`;
+    s += `<g clip-path="url(#cv2)"><g transform="translate(0 ${r2((1 - e1b) * 170)})">${txt(94, 610, d.title[1], { size: 140, w: 800, fill: C.b, ls: '-5' })}</g></g>`;
+    s += `<g clip-path="url(#cv3)"><g transform="translate(0 ${r2((1 - e2) * 70)})">${txt(100, 724, d.sub, { size: 44, w: 500, fill: C.b2 })}</g></g>`;
+    s += rect(100, 790, 1720 * e3, 3, C.b);
+    s += txt(100, 870, 'GuineaPigCages.com 포럼 텍스트 (Firecrawl 수집) · Pexels·Unsplash 사진 (Kaggle ResNet18 분류)', { size: 26, fill: C.b, op: e3 });
+    return s;
+  };
+
+  // ── 기획 배경 (기니어스클럽 1장)
+  S.why = (p) => {
+    const W = CFG.why, e0 = eo(seg(p, 0.05, 0.45));
+    let s = g(e0, rect(100, 290, 700, 640, C.dark) +
+      txt(150, 362, 'GUINIUS CLUB', { size: 26, w: 600, fill: C.b, ls: '4' }) +
+      txt(150, 442, '기니어스클럽', { size: 72, w: 800, fill: C.paper, ls: '-2' }) +
+      W.card.map((l, i) => txt(150, 512 + i * 44, esc(l), { size: 30, w: 500, fill: C.b2 })).join('') +
+      line(150, 610, 750, 610, 'rgba(245,245,248,.22)', 1) +
+      W.points.map((l, i) => rect(150, 652 + i * 74, 14, 14, C.b) + txt(184, 668 + i * 74, esc(l), { size: 28, fill: C.paper })).join(''), up(e0, 30));
+    s += g(eo(seg(p, 0.2, 0.5)), txt(900, 330, '그래서 서비스를 그리기 전에, 데이터로 먼저 확인했다', { size: 32, w: 700, fill: C.muted }));
+    W.qs.forEach((q, i) => {
+      const e = eo(seg(p, 0.28 + i * 0.12, 0.7 + i * 0.12)), y = 400 + i * 180;
+      s += g(e, line(900, y - 10, 1820, y - 10, C.grid, i ? 1 : 2) +
+        txt(900, y + 92, 'Q' + (i + 1), { size: 96, w: 600, num: 1, fill: C.a }) +
+        txt(1030, y + 62, esc(q.q), { size: 40, w: 700 }) +
+        txt(1030, y + 112, esc(q.d), { size: 26, fill: C.muted }), `translate(${r2((1 - e) * 40)} 0)`);
+    });
+    return s;
+  };
+
+  // ── 데이터 개요 (템플릿 10 카운트업 × 3)
+  S.data = (p) => {
+    const cols = [
+      { k: 'PART 1', n: D.care.posts, u: '건', h: '반려인 질문 글', l: ['GuineaPigCages.com 스레드 첫 글', 'Firecrawl 수집 · 감성·카테고리·키워드'] },
+      { k: 'PART 2', n: D.joy.paragraphs, u: '문단', h: `스레드 ${D.joy.threads}개의 전체 답글`, l: ['야채·팝코닝·울음소리 스레드', '규칙 기반 반응 사전 · 트리거 분류'] },
+      { k: 'PART 3', n: D.ai.total, u: '장', h: '기니피그·햄스터 사진', l: [`클래스별 ${D.ai.per_class}장 · Pexels·Unsplash`, 'Kaggle T4 · ResNet18 전이학습'] }
+    ];
+    let s = '';
+    cols.forEach((c, i) => {
+      const x = 100 + i * 593, e = eo(seg(p, 0.06 + i * 0.12, 0.7 + i * 0.12));
+      s += rect(x, 300, 534, 6, C.track) + rect(x, 300, 534 * e, 6, i === 1 ? C.a : C.b);
+      s += txt(x, 362, c.k, { size: 28, w: 600, fill: C.a, op: e });
+      const num = fmt(c.n * e, c.n);
+      s += txt(x - 6, 610, num + `<tspan font-size="48" font-family="${K.FONT}" font-weight="700" fill="${C.muted}" dx="14" letter-spacing="0">${c.u}</tspan>`, { size: 230, w: 600, num: 1, fill: i === 1 ? C.a : C.ink, ls: '-4' });
+      s += g(e, txt(x, 712, esc(c.h), { size: 36, w: 700 }) + c.l.map((l, j) => txt(x, 772 + j * 42, esc(l), { size: 26, fill: C.muted })).join(''));
+    });
+    return s;
+  };
+
+  // ── 걱정 비율 (템플릿 10 카운트업)
+  S.mood = (p) => {
+    const n = D.care.posts, sent = D.care.sentiment, e = eo(seg(p, 0, 0.7));
+    const parts = [['부정·불안', sent['부정'], C.a], ['중립', sent['중립'], C.b], ['긍정', sent['긍정'], C.b2]];
+    let s = txt(100, 330, `부정·불안 감성이 드러난 질문 (${n}건 중 ${sent['부정']}건)`, { size: 36, w: 600, fill: C.muted });
+    s += txt(90, 640, fmt(D.care.neg_pct * e, D.care.neg_pct) + '%', { size: 340, w: 600, num: 1, fill: C.a, ls: '-4' });
+    s += g(eo(seg(p, 0.45, 0.85)), txt(1180, 470, '도움 요청 글이 대부분이라', { size: 32, w: 600 }) + txt(1180, 516, '걱정·불안 어휘가 함께 나온다', { size: 32, w: 600 }) +
+      txt(1180, 572, 'worried · afraid · terrified · worse', { size: 28, fill: C.a, w: 500 }));
+    let x = 100; const W = 1720;
+    s += rect(100, 720, W, 80, C.track);
+    parts.forEach((pt, i) => {
+      const k = eo(seg(p, 0.3 + i * 0.14, 0.62 + i * 0.14)), w = W * pt[1] / n;
+      s += rect(x, 720, w * k, 80, pt[2]);
+      s += rect(x, 842, 22, 22, pt[2], { op: k }) + txt(x + 34, 862, `${pt[0]} ${pt[1]}건 · ${(pt[1] / n * 100).toFixed(1)}%`, { size: 28, op: k });
+      x += w;
+    });
+    return s;
+  };
+
+  // ── 고민 카테고리 (템플릿 06 트리맵, 6항목 배치)
+  S.cats = (p) => {
+    const it = D.care.categories, tot = D.care.posts, X0 = 100, Y0 = 290, W = 1720, H = 650;
+    const fills = [C.dark, C.a, C.a2, C.b, C.b2, C.track];
+    const w0 = W * it[0].n / tot, rest = tot - it[0].n;
+    const c2 = it[1].n + it[2].n, w2 = (W - w0) * c2 / rest, w3 = W - w0 - w2, c3 = rest - c2;
+    const R = [[X0, Y0, w0, H]];
+    let y = Y0; [1, 2].forEach((i) => { const h = H * it[i].n / c2; R.push([X0 + w0, y, w2, h]); y += h; });
+    y = Y0; [3, 4, 5].forEach((i) => { const h = H * it[i].n / c3; R.push([X0 + w0 + w2, y, w3, h]); y += h; });
+    let s = '';
+    R.forEach(([rx, ry, rw, rh], i) => {
+      const k = back(seg(p, i * 0.08, 0.42 + i * 0.08)), cx = rx + rw / 2, cy = ry + rh / 2, c = it[i], e = clamp(k);
+      const ink = i < 3 ? C.paper : C.ink, big = i === 0;
+      s += `<g transform="translate(${r2(cx)} ${r2(cy)}) scale(${r2(Math.max(0.001, k))}) translate(${r2(-cx)} ${r2(-cy)})">` + rect(rx + 3, ry + 3, rw - 6, rh - 6, fills[i]);
+      if (rh > 200) {
+        s += txt(rx + 34, ry + (big ? 72 : 60), esc(c.name), { size: big ? 44 : 34, w: 700, fill: ink });
+        s += txt(rx + 34, ry + rh - 40, f1(c.pct * e) + '%', { size: big ? 150 : 84, w: 600, num: 1, fill: ink });
+        s += txt(rx + rw - 34, ry + rh - 44, c.n + '건', { size: big ? 40 : 32, w: 600, fill: ink, anchor: 'end', op: 0.8 });
+      } else {
+        const sz = rh > 80 ? 28 : 24;
+        s += txt(rx + 26, cy + 9, esc(c.name), { size: sz, w: 600, fill: ink }) + txt(rx + rw - 26, cy + 10, `${f1(c.pct * e)}% · ${c.n}건`, { size: sz + 4, w: 600, num: 1, fill: ink, anchor: 'end' });
+      }
+      s += '</g>';
+    });
+    return s;
+  };
+
+  // ── 카테고리별 부정 비율 (템플릿 02 가로 막대)
+  S.neg = (p) => {
+    const rows = D.care.categories.filter((c) => c.n >= 5).sort((a, b) => b.neg_pct - a.neg_pct);
+    let s = rows.map((c, i) => hbar(p, i, 320 + i * 140, { label: c.name, sub: `${c.n}건 중 ${Math.round(c.n * c.neg_pct / 100)}건이 부정`, v: c.neg_pct, dec: 1, max: 100, unit: '%', bx: 640, bw: 960, h: 54, hi: i === 0 })).join('');
+    const e = eo(seg(p, 0.6, 1));
+    s += g(e, txt(100, 920, '케이지 질문은 크기·제품을 묻는 정보 탐색형, 합사·질병 질문은 "don\'t know what to do" 같은 무력감과 함께 나온다', { size: 26, fill: C.muted }));
+    return s;
+  };
+
+  // ── 키워드 (템플릿 08 세로 막대)
+  S.kw = (p) => {
+    const kw = D.care.keywords, n = kw.length, x0 = 230, x1 = 1690, yb = 880, hmax = 500, max = 55, bw = 128;
+    let s = line(140, yb, 1780, yb, C.grid, 2);
+    kw.forEach((k, i) => {
+      const cx = x0 + (x1 - x0) * i / (n - 1), hi = i === 0, e = eo(seg(p, 0.06 + i * 0.07, 0.62 + i * 0.07)), h = hmax * k.n / max * e;
+      s += rect(cx - bw / 2, yb - h, bw, h, hi ? C.a : C.b);
+      s += txt(cx, yb - h - 22, fmt(k.n * e, k.n), { size: hi ? 64 : 46, w: 600, num: 1, anchor: 'middle', fill: hi ? C.a : C.ink, op: seg(e, 0.1, 0.4) });
+      if (h > 70) s += txt(cx, yb - 24, k.word, { size: 28, w: 600, num: 1, anchor: 'middle', fill: hi ? C.paper : C.dark, op: seg(e, 0.5, 1) });
+      s += txt(cx, 928, esc(k.ko), { size: 28, w: hi ? 700 : 600, anchor: 'middle' });
+    });
+    return s;
+  };
+
+  // ── 야채 티어표 (와플식 칩 등장)
+  S.tier = (p) => {
+    const T = D.joy.tiers, tiers = ['S', 'A', 'B', 'C'], fills = { S: C.dark, A: C.a, B: C.a2, C: C.grid };
+    let s = '';
+    tiers.forEach((t, r) => {
+      const y = 286 + r * 168, H = 150, e = eo(seg(p, 0.04 + r * 0.1, 0.4 + r * 0.1));
+      s += g(e, rect(100, y, 140, H, fills[t]) + txt(170, y + 98, t, { size: 104, w: 600, num: 1, anchor: 'middle', fill: t === 'C' ? C.ink : C.paper }) +
+        txt(170, y + 136, T[t].length + '종', { size: 22, w: 600, anchor: 'middle', fill: t === 'C' ? C.muted : C.b2 }) + rect(248, y, 1572, H, C.track), `translate(${r2((1 - e) * -30)} 0)`);
+      // 칩 자동 줄바꿈
+      let cx = 272, cy = y + 18; const ch = 54, rowW = 1800;
+      T[t].forEach((v, j) => {
+        const sc = (v.score > 0 ? '+' : v.score < 0 ? '−' : '') + Math.abs(v.score).toFixed(2);
+        const w = tw(v.ko, 26) + tw(sc, 26, 1) + 52;
+        if (cx + w > rowW) { cx = 272; cy += ch + 10; }
+        const k = back(seg(p, 0.18 + r * 0.1 + j * 0.025, 0.42 + r * 0.1 + j * 0.025)), mx = cx + w / 2, my = cy + ch / 2;
+        const strong = t === 'S';
+        s += `<g transform="translate(${r2(mx)} ${r2(my)}) scale(${r2(Math.max(0.001, k))}) translate(${r2(-mx)} ${r2(-my)})">` +
+          rect(cx, cy, w, ch, C.card, { stroke: strong ? C.a : C.grid, sw: strong ? 2 : 1 }) +
+          txt(cx + 18, cy + 37, esc(v.ko), { size: 26, w: strong ? 700 : 500 }) +
+          txt(cx + w - 16, cy + 38, sc, { size: 28, w: 600, num: 1, anchor: 'end', fill: v.score < 0 ? C.muted : C.a }) + '</g>';
+        cx += w + 12;
       });
-      const e3 = eo(seg(p, 0.65, 1)), sh = D.ai.shaky.map((q) => Math.round(q.conf * 100) + '%').join(' · ');
-      s += G(R(100, 900, 1720, 66, C.carbon) + R(100, 900, 1720, 66, 'url(#ht)') + chip(124, 916, 'NEXT', { size: 16, w: 110, fill: C.signal, ink: C.white }) +
-        T(260, 944, '전신이 보이게 찍도록 프레이밍 가이드 · 가림·원거리 사진으로 데이터 증강 · 확신도가 낮으면 다시 찍기 유도', { size: 24, w: 700, fill: C.white }), { op: e3 });
-      return s;
-    },
-    over: () => MIS().map((m, k) => {
-      const x = 100 + k * 590;
-      return `<clipPath id="mc${k}"><rect x="${x + 20}" y="288" width="500" height="290"/></clipPath><image class="fade-img" style="animation-delay:${0.5 + k * 0.25}s" href="${esc(m.url)}" x="${x + 20}" y="288" width="500" height="290" preserveAspectRatio="xMidYMid slice" clip-path="url(#mc${k})"/>` +
-        R(x + 20, 288, 500, 290, 'none', { stroke: C.carbon, sw: 4 }) + (k === 0 ? chip(x + 264, 304, 'CONFIDENT MISS', { size: 15, w: 240, fill: C.primary, ink: C.white }) : '');
+    });
+    return s;
+  };
+
+  // ── 자주 오르는 채소: 점수 발산 막대
+  S.pop = (p) => {
+    const rows = D.joy.popular, x0 = 1140, sc = 560, y0 = 300, gap = 66;
+    let s = line(x0, y0 - 24, x0, y0 + rows.length * gap - 10, C.ink, 2);
+    [-1, -0.5, 0.5, 1].forEach((v) => s += line(x0 + v * sc, y0 - 24, x0 + v * sc, y0 + rows.length * gap - 10, C.track, 1));
+    [-1, -0.5, 0, 0.5, 1].forEach((v) => s += txt(x0 + v * sc, y0 + rows.length * gap + 30, (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1), { size: 26, num: 1, anchor: 'middle', fill: C.muted }));
+    s += txt(x0 - 20, 270, '← 거부가 많음', { size: 24, fill: C.muted, anchor: 'end' }) + txt(x0 + 20, 270, '열광이 많음 →', { size: 24, fill: C.muted });
+    rows.forEach((v, i) => {
+      const y = y0 + i * gap, neg = v.score < 0, e = eo(seg(p, 0.08 + i * 0.06, 0.6 + i * 0.06)), w = sc * Math.abs(v.score) * e;
+      s += txt(100, y + 30, esc(v.ko), { size: 32, w: neg ? 800 : 600, fill: neg ? C.a : C.ink });
+      s += txt(500, y + 30, v.n + '회', { size: 30, w: 500, num: 1, fill: C.muted, anchor: 'end' });
+      s += txt(530, y + 30, `열광 ${v.love} · 거부 ${v.reject}`, { size: 24, fill: neg ? C.a : C.muted, w: neg ? 700 : 400 });
+      s += rect(neg ? x0 - w : x0, y + 4, w, 38, neg ? C.a : C.b);
+      const lx = neg ? x0 - w - 14 : x0 + w + 14;
+      s += txt(lx, y + 34, (neg ? '−' : '+') + fmt(Math.abs(v.score) * e, Math.abs(v.score)), { size: neg ? 40 : 32, w: 600, num: 1, anchor: neg ? 'end' : 'start', fill: neg ? C.a : C.ink, op: seg(e, 0.3, 0.7) });
+    });
+    return s;
+  };
+
+  // ── 팝코닝 트리거: 누적 가로 막대(격렬한 묘사 / 그 외)
+  S.trig = (p) => {
+    const rows = D.joy.triggers, bx = 700, bw = 960, max = 26, y0 = 330, gap = 98;
+    let s = rect(1290, 262, 22, 22, C.a) + txt(1322, 282, '격렬한 묘사 포함', { size: 24 }) + rect(1530, 262, 22, 22, C.b) + txt(1562, 282, '그 외 언급', { size: 24 });
+    rows.forEach((r, i) => {
+      const y = y0 + i * gap, e = eo(seg(p, 0.08 + i * 0.08, 0.6 + i * 0.08)), hi = i < 2;
+      s += txt(100, y + 36, esc(r.ko), { size: 32, w: hi ? 700 : 500 });
+      s += rect(bx, y, bw, 50, C.track) + rect(bx, y, bw * r.intense / max * e, 50, C.a) + rect(bx + bw * r.intense / max * e, y, bw * (r.n - r.intense) / max * e, 50, C.b);
+      s += txt(bx + 16, y + 35, '격렬 ' + r.intense, { size: 24, w: 600, fill: C.paper, op: seg(e, 0.6, 1) });
+      s += txt(1820, y + 44, fmt(r.n * e, r.n) + `<tspan font-size="26" font-family="${K.FONT}" font-weight="500" dx="6">문단</tspan>`, { size: 56, w: 600, num: 1, anchor: 'end', fill: hi ? C.a : C.ink });
+    });
+    s += g(eo(seg(p, 0.6, 1)), txt(100, 940, '격렬한 묘사 비율은 집사 목소리·등장(71%), 쓰다듬기(67%)가 가장 높지만 표본은 6~7문단이다', { size: 26, fill: C.muted }));
+    return s;
+  };
+
+  // ── 리액션 단어 (템플릿 08 세로 막대)
+  S.words = (p) => {
+    const w = D.joy.words, n = w.length, x0 = 240, x1 = 1680, yb = 860, hmax = 480, max = 240, bw = 150;
+    let s = line(140, yb, 1780, yb, C.grid, 2);
+    w.forEach((k, i) => {
+      const cx = x0 + (x1 - x0) * i / (n - 1), hi = i < 2, e = eo(seg(p, 0.06 + i * 0.08, 0.62 + i * 0.08)), h = hmax * k.count / max * e;
+      s += rect(cx - bw / 2, yb - h, bw, h, hi ? C.a : C.b);
+      s += txt(cx, yb - h - 22, fmt(k.count * e, k.count), { size: hi ? 64 : 46, w: 600, num: 1, anchor: 'middle', fill: hi ? C.a : C.ink, op: seg(e, 0.1, 0.4) });
+      s += txt(cx, 906, esc(k.word.split(' / ')[0]), { size: 30, w: 600, num: 1, anchor: 'middle' });
+      s += txt(cx, 946, esc(k.ko.replace(/\(.*\)/, '')), { size: 24, anchor: 'middle', fill: C.muted });
+    });
+    return s;
+  };
+
+  // ── 윅윅 트리거 (템플릿 02 가로 막대)
+  S.wheek = (p) => {
+    const rows = D.joy.wheek_all;
+    return rows.map((r, i) => hbar(p, i, 300 + i * 104, { label: r.ko, sub: i === 0 ? '사료 시간이 다가오면 먼저 울기 시작' : i === 1 ? '봉지 소리 = 간식이 온다는 신호' : '', v: r.n, max: 24, unit: '문단', uSize: 26, bx: 760, bw: 860, h: 46, hi: i < 2 })).join('');
+  };
+
+  // ── 이미지 데이터셋 (템플릿 04 와플)
+  S.set = (p) => {
+    const cell = 52, gp = 8, ox = 100, oy = 290, f = eo(seg(p, 0.04, 0.8));
+    let s = '';
+    for (let i = 0; i < 100; i++) {
+      const r = Math.floor(i / 10), c = i % 10, ham = r >= 5, val = r === 4 || r === 9;
+      const x = ox + c * (cell + gp), y = oy + r * (cell + gp) + (ham ? 24 : 0);
+      const on = i < 100 * f, pop = on ? back(clamp(100 * f - i)) : 1, sz = cell * (on ? pop : 1), off = (cell - sz) / 2, col = ham ? C.b : C.a;
+      s += on ? (val ? rect(x + off + 2, y + off + 2, sz - 4, sz - 4, C.bg, { stroke: col, sw: 4 }) : rect(x + off, y + off, sz, sz, col)) : rect(x, y, cell, cell, C.track);
+    }
+    const e1 = eo(seg(p, 0.15, 0.55)), e2 = eo(seg(p, 0.3, 0.7)), e3 = eo(seg(p, 0.45, 0.9));
+    const sb = D.ai.split_by_class;
+    s += g(e1, txt(820, 380, fmt(50 * e1, 50), { size: 150, w: 600, num: 1, fill: C.a }) + txt(820, 430, `기니피그 · 학습 ${sb['guinea_pig|train']} / 검증 ${sb['guinea_pig|val']}`, { size: 28, w: 600 }) +
+      txt(1320, 380, fmt(50 * e1, 50), { size: 150, w: 600, num: 1, fill: C.b }) + txt(1320, 430, `햄스터 · 학습 ${sb['hamster|train']} / 검증 ${sb['hamster|val']}`, { size: 28, w: 600 }));
+    s += g(e2, rect(820, 500, 28, 28, C.a2) + txt(862, 524, `학습 ${D.ai.train_n}장`, { size: 28 }) + rect(1062, 502, 24, 24, C.bg, { stroke: C.a2, sw: 4 }) + txt(1100, 524, `검증 ${D.ai.val_n}장 (학습에 안 쓴 사진)`, { size: 28 }));
+    const steps = ['Firecrawl로 Pexels·Unsplash 이미지 URL 수집', '다운로드 · 손상 파일 검증 → 클래스별 폴더', 'ImageNet 사전학습 ResNet18 · 5 epoch (Kaggle T4)'];
+    s += g(e3, line(820, 590, 1820, 590, C.grid, 1) + steps.map((t, i) => txt(820, 656 + i * 66, String(i + 1).padStart(2, '0'), { size: 40, w: 600, num: 1, fill: C.a }) + txt(880, 654 + i * 66, t, { size: 30 })).join('') +
+      txt(820, 870, `출처 구성: Pexels ${D.ai.sources.pexels}장 · Unsplash ${D.ai.sources.unsplash}장`, { size: 26, fill: C.muted }));
+    return s;
+  };
+
+  // ── 정확도 (템플릿 05 링 게이지)
+  S.acc = (p) => {
+    const a = D.ai, rings = [
+      ['학습 정확도', a.train_acc * 100, `${a.train_correct}/${a.train_n}장 · 과적합 신호`],
+      ['검증 정확도', a.val_acc * 100, `${a.val_correct}/${a.val_n}장 · 처음 보는 사진`],
+      ['95% 신뢰구간 하한', a.ci_lo * 100, `구간 ${(a.ci_lo * 100).toFixed(1)}–${(a.ci_hi * 100).toFixed(1)}%`]
+    ];
+    let s = ''; const r = 170, sw = 34, L = 2 * Math.PI * r;
+    rings.forEach((gg, i) => {
+      const cx = 400 + i * 560, cy = 590, hi = i === 1, e = eo(seg(p, 0.08 + i * 0.12, 0.75 + i * 0.12));
+      s += circ(cx, cy, r, 'none', { stroke: C.track, sw });
+      s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${hi ? C.a : C.b}" stroke-width="${sw}" stroke-dasharray="${r2(L * gg[1] / 100 * e)} ${r2(L)}" transform="rotate(-90 ${cx} ${cy})"/>`;
+      s += txt(cx, cy + 34, fmt(gg[1] * e, gg[1]) + `<tspan font-size="48" dx="4">%</tspan>`, { size: 110, w: 600, num: 1, anchor: 'middle', fill: hi ? C.a : C.ink });
+      s += txt(cx, cy + r + 82, gg[0], { size: 38, w: hi ? 700 : 500, anchor: 'middle' });
+      s += txt(cx, cy + r + 124, esc(gg[2]), { size: 26, anchor: 'middle', fill: hi ? C.a : C.muted, w: hi ? 600 : 400 });
+    });
+    return s;
+  };
+
+  // ── 혼동 행렬 + 클래스별 재현율
+  S.cm = (p) => {
+    const cm = D.ai.cm, cls = ['guinea_pig', 'hamster'], ox = 330, oy = 360, cs = 250, gap = 10;
+    let s = txt(ox + cs + gap / 2, 300, '예측 →', { size: 26, w: 600, fill: C.muted, anchor: 'middle' }) + txt(ox - 30, 300, '실제 ↓', { size: 26, w: 600, fill: C.muted, anchor: 'end' });
+    cls.forEach((c, j) => s += txt(ox + j * (cs + gap) + cs / 2, 344, KO[c], { size: 30, w: 700, anchor: 'middle' }));
+    cls.forEach((t, i) => {
+      s += txt(ox - 30, oy + i * (cs + gap) + cs / 2 + 12, KO[t], { size: 30, w: 700, anchor: 'end' });
+      cls.forEach((pr, j) => {
+        const v = cm[`${t}->${pr}`], diag = i === j, hi = t === 'hamster' && pr === 'guinea_pig';
+        const k = back(seg(p, 0.06 + (i * 2 + j) * 0.09, 0.45 + (i * 2 + j) * 0.09)), x = ox + j * (cs + gap), y = oy + i * (cs + gap), mx = x + cs / 2, my = y + cs / 2;
+        s += `<g transform="translate(${mx} ${my}) scale(${r2(Math.max(0.001, k))}) translate(${-mx} ${-my})">` +
+          rect(x, y, cs, cs, diag ? C.a : hi ? C.b2 : C.track, hi ? { stroke: C.a, sw: 4 } : {}) +
+          txt(mx, my + 44, v, { size: 150, w: 600, num: 1, anchor: 'middle', fill: diag ? C.paper : C.a }) +
+          txt(mx, y + cs - 22, diag ? '맞힘' : '틀림', { size: 24, w: 600, anchor: 'middle', fill: diag ? C.b2 : C.muted }) + '</g>';
+      });
+    });
+    const bx = 1040, bw = 780;
+    s += g(eo(seg(p, 0.4, 0.7)), txt(bx, 400, '클래스별 재현율 (실제 클래스를 맞힌 비율)', { size: 28, w: 600, fill: C.muted }));
+    cls.forEach((c, i) => {
+      const v = D.ai.recall[c] * 100, e = eo(seg(p, 0.45 + i * 0.12, 0.85 + i * 0.12)), y = 450 + i * 150, hi = c === 'hamster';
+      s += txt(bx, y + 40, KO[c], { size: 34, w: 700 }) + txt(1820, y + 46, fmt(v * e, v) + '%', { size: 64, w: 600, num: 1, anchor: 'end', fill: hi ? C.a : C.ink });
+      s += rect(bx, y + 66, bw, 40, C.track) + rect(bx, y + 66, bw * v / 100 * e, 40, hi ? C.a : C.b);
+    });
+    s += g(eo(seg(p, 0.7, 1)), txt(bx, 800, '햄스터 10장 중 2장을 기니피그로 봤다', { size: 30, w: 700, fill: C.a }) + txt(bx, 844, '→ 오답은 햄스터 쪽에 몰려 있다', { size: 28, fill: C.muted }));
+    return s;
+  };
+
+  // ── 정답 확률 스트립 플롯
+  S.conf = (p) => {
+    const pts = D.ai.val_points, x0 = 420, x1 = 1760, X = (v) => x0 + (x1 - x0) * v, lanes = { guinea_pig: 470, hamster: 720 };
+    const e0 = eo(seg(p, 0, 0.3));
+    let s = rect(x0, 360, X(0.5) - x0, 470, C.track, { op: e0 }) + txt(x0 + 24, 400, '오답 영역 (정답 확률 0.5 미만)', { size: 24, w: 600, fill: C.muted, op: e0 });
+    s += line(X(0.5), 350, X(0.5), 840, C.ink, 2, { dash: '10 8' });
+    [0, 0.25, 0.5, 0.75, 1].forEach((v) => s += line(X(v), 840, X(v), 852, C.ink, 2) + txt(X(v), 890, v.toFixed(2), { size: 28, num: 1, anchor: 'middle', fill: C.muted }));
+    s += line(x0, 840, x1, 840, C.ink, 2) + txt(x1, 940, '정답 클래스 확률 → 1에 가까울수록 확신하고 맞힘', { size: 26, anchor: 'end', fill: C.muted });
+    Object.entries(lanes).forEach(([c, y]) => s += txt(100, y + 12, KO[c], { size: 36, w: 700 }) + txt(100, y + 52, `검증 ${D.ai.cm[c + '->guinea_pig'] + D.ai.cm[c + '->hamster']}장`, { size: 24, fill: C.muted }) + line(x0, y, x1, y, C.grid, 1));
+    const seen = {};
+    pts.forEach((q, i) => {
+      const lane = lanes[q.true], k = seen[q.true] = (seen[q.true] || 0) + 1;
+      const e = eio(seg(p, 0.15 + i * 0.02, 0.7 + i * 0.02)), x = X(0.5 + (q.p_true - 0.5) * e);
+      const y = lane + (q.ok ? ((k % 5) - 2) * 24 : 0);
+      if (q.ok) s += circ(x, y, 14, C.b, { op: 0.85, stroke: C.a2, sw: 2 });
+      else {
+        const lab = esc(q.file.replace('.jpg', ''));
+        s += circ(x, y, 20, C.a) + g(seg(e, 0.8, 1), txt(x, y - 40, q.p_true.toFixed(2), { size: 40, w: 600, num: 1, anchor: 'middle', fill: C.a }) + txt(x, y + 58, lab, { size: 22, anchor: 'middle', fill: C.ink, w: 600 }));
+      }
+    });
+    return s;
+  };
+
+  // ── 오분류 사진 카드 (사진은 over 층)
+  const MIS = () => D.ai.wrong.map((w) => Object.assign({}, w, CFG.misclass[w.file] || { tag: '', note: [] }, { p_true: (D.ai.val_points.find((q) => q.file === w.file) || {}).p_true }));
+  S.miss = (p) => {
+    let s = '';
+    MIS().forEach((m, k) => {
+      const x = 100 + k * 593, e = eo(seg(p, 0.06 + k * 0.12, 0.55 + k * 0.12));
+      s += g(e, rect(x, 280, 534, 650, C.card, { stroke: C.grid, sw: 1 }) + rect(x + 16, 296, 502, 290, C.track) + txt(x + 267, 450, '사진 불러오는 중', { size: 22, fill: C.muted, anchor: 'middle' }) +
+        txt(x + 30, 636, esc(m.file), { size: 28, w: 600, num: 1, fill: C.muted }) +
+        txt(x + 30, 686, `정답 ${KO[m.true]} → 예측 ${KO[m.pred]}`, { size: 32, w: 700 }) +
+        txt(x + 30, 736, `정답 확률 ${m.p_true.toFixed(2)} · 오답 확신도 ${m.conf.toFixed(2)}`, { size: 26, w: 600, fill: C.a }) +
+        line(x + 30, 766, x + 504, 766, C.grid, 1) +
+        txt(x + 30, 812, esc(m.tag), { size: 28, w: 700 }) + m.note.map((l, j) => txt(x + 30, 856 + j * 36, esc(l), { size: 25, fill: C.muted })).join(''), up(e, 30));
+    });
+    return s;
+  };
+  const OVER = {
+    miss: () => MIS().map((m, k) => {
+      const x = 100 + k * 593;
+      return `<clipPath id="mc${k}"><rect x="${x + 16}" y="296" width="502" height="290"/></clipPath><image class="fade-img" style="animation-delay:${0.5 + k * 0.25}s" href="${esc(m.url)}" x="${x + 16}" y="296" width="502" height="290" preserveAspectRatio="xMidYMid slice" clip-path="url(#mc${k})"><title>${esc(m.alt)}</title></image>`;
     }).join('')
   };
 
-  // 09 로드맵 — 월드맵 경로가 그려지고 스테이지 깃발이 차례로 꽂힘, 마스코트가 따라 걷는다
-  const STAGES = [[305, 380], [742, 330], [1178, 380], [1615, 330]];
-  S[8] = {
-    base: () => R(100, 268, 1720, 690, 'url(#grid)'),
-    dyn: (p) => {
-      let s = '';
-      const f = eo(seg(p, 0.05, 0.8));
-      const pts = [[120, 400], ...STAGES, [1820, 330]];
-      s += `<path d="${partial(pts, 1)}" fill="none" stroke="${C.mindigo}" stroke-width="10" stroke-dasharray="2 22" stroke-linecap="round"/>`;
-      s += `<path d="${partial(pts, f)}" fill="none" stroke="${C.amber}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>`;
-      CFG.roadmap.forEach((st, k) => {
-        const [cx, cy] = STAGES[k], at = (k + 1) / 5, kk = back(seg(f, at - 0.1, at + 0.08));
-        const off = st.mode === 'OFFLINE';
-        s += G(O(cx, cy, 34, off ? C.signal : C.indigo, { stroke: C.carbon, sw: 4 }) + T(cx, cy + 12, k + 1, { f: K.DISPLAY, size: 34, w: 900, fill: C.white, anchor: 'middle' }), { s: kk, at: [cx, cy] });
-        const x = cx - 205, y = 460, e = eo(seg(p, 0.22 + k * 0.1, 0.62 + k * 0.1));
-        s += G(plate(x, y, 410, 440, { fill: off ? C.ice : C.white, ch: 18, edge: off ? C.gold : C.indigo }) +
-          labelBar(x, y, 410, st.world, { fill: off ? C.amber : C.peri }) +
-          chip(x + 410 - 132, y + 7, st.mode, { size: 14, w: 120, fill: off ? C.signal : C.carbon, ink: C.white }) +
-          T(x + 24, y + 106, st.name, { size: 36, w: 900, fill: C.carbon }) +
-          (st.proposal ? T(x + 24, y + 144, '제안(안) · 기획 문서 이후 확장', { size: 19, w: 700, fill: C.gold }) : T(x + 24, y + 144, k === 0 ? 'MVP' : k === 1 ? '리텐션 루프' : '데이터 기반 고도화', { size: 19, w: 700, fill: C.indigo })) +
-          L(x + 24, y + 170, x + 386, y + 170, C.mindigo, 2, { dash: '2 7', cap: 'round' }) +
-          st.lines.map((l, i) => R(x + 26, y + 212 + i * 70, 10, 10, off ? C.signal : C.indigo) + T(x + 48, y + 223 + i * 70, l, { size: 22, w: 600, fill: C.carbon })).join(''), { op: e, dy: (1 - e) * 30 });
-      });
-      // 걷는 마스코트
-      const pos = (() => { const tot = []; let sum = 0; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); tot.push(d); sum += d; } let rem = sum * f; for (let i = 1; i < pts.length; i++) { if (rem <= tot[i - 1]) { const q = rem / tot[i - 1]; return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * q, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * q]; } rem -= tot[i - 1]; } return pts[pts.length - 1]; })();
-      s += pig(Math.min(pos[0], 1720) - 56, pos[1] - 96, 8);
-      return s;
+  // ── 정리 (어두운 배경)
+  S.end = (p) => {
+    const tg = D.joy.triggers[0];
+    const cols = [
+      { k: 'PART 1  반려인의 고민', big: D.care.neg_pct + '%', h: '질문에 묻은 걱정', l: [`최대 고민 = 질병·동물병원 ${D.care.top_cat_pct.toFixed(1)}%`, `합사·행동 질문 부정 ${D.care.bond_neg_pct}%`] },
+      { k: 'PART 2  기니피그의 기쁨', big: String(tg.n), u: '문단', h: `팝코닝 1위 트리거: ${tg.ko}`, l: [`리액션 단어 popcorn ${D.joy.word_popcorn} · wheek ${D.joy.word_wheek}`, `주키니는 ${D.joy.popular.find((v) => v.ko === '주키니').n}회 중 거부 ${D.joy.zucchini_reject}회`] },
+      { k: 'PART 3  AI 구별 실험', big: Math.round(D.ai.val_acc * 100) + '%', h: '처음 보는 사진 정확도', l: [`오답 ${D.ai.val_n - D.ai.val_correct}장 중 2장이 햄스터→기니피그`, '몸통이 작거나 가려지면 틀린다'] }
+    ];
+    let s = '';
+    cols.forEach((c, i) => {
+      const x = 100 + i * 593, e = eo(seg(p, 0.08 + i * 0.12, 0.6 + i * 0.12));
+      s += g(e, rect(x, 290, 534, 4, C.b) + txt(x, 346, c.k, { size: 26, w: 600, fill: C.b }) +
+        txt(x - 4, 500, c.big + (c.u ? `<tspan font-size="40" font-family="${K.FONT}" font-weight="700" fill="${C.b}" dx="12" letter-spacing="0">${c.u}</tspan>` : ''), { size: 150, w: 600, num: 1, fill: C.paper, ls: '-3' }) +
+        txt(x, 560, esc(c.h), { size: 32, w: 700, fill: C.paper }) + c.l.map((l, j) => txt(x, 608 + j * 40, esc(l), { size: 25, fill: C.b2 })).join(''), up(e, 30));
+    });
+    const e = eo(seg(p, 0.5, 1));
+    s += g(e, line(100, 730, 1820, 730, 'rgba(245,245,248,.22)', 1) + txt(100, 786, '한계와 다음 질문', { size: 28, w: 700, fill: C.b }) +
+      CFG.limits.map((l, j) => rect(100, 822 + j * 46, 10, 10, C.b) + txt(126, 834 + j * 46, esc(l), { size: 27, fill: C.paper })).join(''));
+    return s;
+  };
+
+  // ── 프레임 조립
+  const N = SL.length;
+  const head = (i, p) => {
+    const d = SL[i];
+    if (d.id === 'cover') return '';
+    const tt = { kicker: esc(d.kicker), title: esc(d.title), source: esc(d.source) };
+    return chrome(tt, p, !!d.dark) + txt(1820, 1030, String(i + 1).padStart(2, '0') + ' / ' + N, { size: 26, w: 600, num: 1, fill: d.dark ? C.b : C.muted, anchor: 'end' });
+  };
+  const body = (i, p) => {
+    const d = SL[i];
+    return `<rect width="${K.W}" height="${K.H}" fill="${d.dark ? C.dark : C.bg}"/>` + head(i, p) + S[d.id](p, d);
+  };
+  const svg = (i, p, withOver) => `<svg viewBox="0 0 ${K.W} ${K.H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(Array.isArray(SL[i].title) ? SL[i].title.join(' ') : SL[i].title)}"><g class="dyn">${body(i, p)}</g>${withOver && OVER[SL[i].id] ? `<g class="over">${OVER[SL[i].id]()}</g>` : ''}</svg>`;
+  window.renderSlide = (i, t) => svg(i, progress(t, true), true); // 외부 캡처용
+
+  // ── 플레이어: 한 장씩 변환 2.2초 후 완료 상태 유지(템플릿 once 모드)
+  const q = new URLSearchParams(location.search);
+  const stage = document.getElementById('stage'), board = document.getElementById('board'), scrub = document.getElementById('scrub');
+  const count = document.getElementById('count'), still = q.get('still') === '1';
+  if (q.get('clean') === '1') document.body.classList.add('clean');
+  let idx = 0, t0 = 0, raf = 0, dyn = null;
+  const parseHash = () => { const n = parseInt(location.hash.slice(1), 10); return n >= 1 && n <= N ? n - 1 : 0; };
+  const tick = () => {
+    const t = still ? K.BUILD : (performance.now() - t0) / 1000, p = progress(t, true);
+    dyn.innerHTML = body(idx, p);
+    raf = p < 1 ? requestAnimationFrame(tick) : 0;
+  };
+  const enter = (i) => {
+    idx = (i + N) % N; cancelAnimationFrame(raf);
+    stage.innerHTML = svg(idx, 0, true); dyn = stage.querySelector('.dyn');
+    count.textContent = String(idx + 1).padStart(2, '0') + ' / ' + N; scrub.value = idx;
+    if (location.hash !== '#' + (idx + 1)) history.replaceState(null, '', '#' + (idx + 1));
+    document.title = (SL[idx].name || '') + ' · 기니피그·햄스터 데이터 리포트';
+    t0 = performance.now(); tick();
+  };
+  const go = (dlt) => enter(idx + dlt);
+  const toggleBoard = (on) => {
+    const show = on === undefined ? board.hidden : on;
+    board.hidden = !show; document.body.classList.toggle('boarding', show);
+    if (show && !board.dataset.ready) {
+      document.getElementById('cells').innerHTML = SL.map((d, i) => `<button class="cell" data-i="${i}"><span class="thumb">${svg(i, 1, true)}</span><span class="cap"><b>${String(i + 1).padStart(2, '0')}</b>${esc(d.name)}</span></button>`).join('');
+      board.dataset.ready = '1';
     }
   };
-
-  // 10 클로징 — 플레이어 선택 화면 + 핵심 숫자 스코어보드
-  S[9] = {
-    base: () => plate(1040, 268, 780, 470, { fill: C.lavender, ch: 30, pattern: 'circuit' }),
-    dyn: (p) => {
-      let s = '';
-      CFG.personas.forEach((q, k) => {
-        const y = 268 + k * 240, e = eo(seg(p, 0.1 + k * 0.15, 0.6 + k * 0.15));
-        s += G(R(100, y, 900, 210, C.carbon) + R(100, y, 900, 210, 'url(#ht)') + L(100, y + 2, 1000, y + 2, C.mindigo, 3) +
-          chip(132, y + 30, q.p, { size: 18, w: 170, fill: k ? C.amber : C.signal, ink: k ? C.carbon : C.white }) +
-          T(132, y + 130, q.head, { size: 44, w: 900, fill: C.white }) + T(132, y + 178, q.sub, { size: 26, w: 600, fill: C.soft }) +
-          arrowDisc(950, y + 105, 26), { op: e, dx: (1 - e) * -60 });
-      });
-      s += G(box(1080, 400, 'PRESS START', { size: 76, sw: 11, shadow: 6 }) + T(1084, 470, '디지털 반려동물 기반', { size: 30, w: 800, fill: C.carbon }) + T(1084, 512, '라이프스타일 코워킹 스페이스', { size: 30, w: 800, fill: C.carbon }), { op: eo(seg(p, 0.2, 0.6)) });
-      const a = D.ai, j = D.joy, c = D.care;
-      const nums = [[j.paragraphs, '', '포럼 문단 분석'], [c.neg_pct, '%', '걱정이 담긴 질문'], [a.val_acc * 100, '%', 'AI 판별 정확도'], [4, '', '확장 월드']];
-      nums.forEach(([v, u, lb], k) => {
-        const x = 100 + k * 440, e = eo(seg(p, 0.4 + k * 0.08, 0.76 + k * 0.08));
-        s += G(plate(x, 770, 400, 186, { fill: k === 2 ? C.ice : C.platinum }) + box(x + 28, 880, fmt(v * e, v) + u, { size: 82, sw: 10, shadow: 5 }) + T(x + 30, 932, lb, { size: 24, w: 700, fill: C.indigo }), { op: e });
-      });
-      return s;
-    },
-    over: () => mascot(1590, 560, 13, true)
-  };
-
-  // 마스코트는 over 층에 SMIL로 깡충(팝코닝) — 매 프레임 다시 그리지 않음
-  function mascot(x, y, px, small) {
-    const body = pig(x, y, px);
-    if (RM) return body;
-    const h = small ? 26 : 46;
-    return `<ellipse cx="${x + 7 * px}" cy="${y + 9.4 * px}" rx="${6.5 * px}" ry="${px * 0.7}" fill="#21242e" opacity=".18"><animate attributeName="rx" values="${6.5 * px};${6.5 * px};${4.5 * px};${6.5 * px};${5.5 * px};${6.5 * px}" keyTimes="0;.6;.7;.8;.86;1" dur="2.8s" repeatCount="indefinite"/></ellipse>` +
-      `<g>${body}<animateTransform attributeName="transform" type="translate" values="0 0;0 0;0 -${h};0 0;0 -${h * 0.4};0 0" keyTimes="0;.6;.7;.8;.86;1" dur="2.8s" repeatCount="indefinite"/></g>`;
-  }
-
-  // ---------------------------------------------------------------- 플레이어
-  const stage = document.getElementById('stage');
-  const q = new URLSearchParams(location.search);
-  const still = q.get('still') === '1';
-  let idx = clamp(parseInt((location.hash.slice(1) || q.get('s') || '1'), 10) - 1 || 0, 0, N - 1), t0 = performance.now(), running = false;
-  const svgShell = (i, withOver) => `<svg viewBox="0 0 ${K.W} ${K.H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc((CFG.slides[i].title || '기니어스클럽 표지'))}">${DEFS}<g>${chromeBase(i)}${S[i].base ? S[i].base() : ''}</g><g class="dyn"></g>${withOver && S[i].over ? `<g class="over">${S[i].over()}</g>` : ''}</svg>`;
-  const dynAt = (i, p) => title(i, p) + S[i].dyn(p);
-
-  const enter = (i) => {
-    idx = (i + N) % N;
-    stage.innerHTML = svgShell(idx, true);
-    t0 = performance.now();
-    if (history.replaceState) history.replaceState(null, '', '#' + (idx + 1));
-    document.getElementById('count').textContent = `${String(idx + 1).padStart(2, '0')} / ${String(N).padStart(2, '0')}`;
-    document.querySelectorAll('#dots button').forEach((b, k) => b.setAttribute('aria-current', k === idx ? 'true' : 'false'));
-    stage.querySelectorAll('[data-go-nav]').forEach((g) => g.addEventListener('click', (e) => { e.stopPropagation(); const n = +g.dataset.goNav; enter(CFG.slides.findIndex((s) => s.nav === n)); }));
-    if (!running) { running = true; requestAnimationFrame(loop); }
-  };
-  const loop = () => {
-    const dyn = stage.querySelector('.dyn');
-    const t = (still || RM) ? 99 : (performance.now() - t0) / 1000;
-    const p = window.MK.progress(t, true);
-    if (dyn) dyn.innerHTML = dynAt(idx, p);
-    if (p < 1) requestAnimationFrame(loop); else running = false; // 빌드가 끝나면 멈춤 → 마스코트(SMIL)만 계속 움직임
-  };
-  const go = (d) => enter(idx + d);
-
-  // 개요 보드 (템플릿의 카드 그리드 계승)
-  const board = document.getElementById('board');
-  const openBoard = () => {
-    board.innerHTML = CFG.slides.map((s, i) => `<button class="cell" data-i="${i}"><span class="thumb">${svgShell(i, false).replace('<g class="dyn"></g>', `<g>${dynAt(i, 1)}</g>`)}</span><span class="cap"><b>${String(i + 1).padStart(2, '0')}</b>${esc(s.title || '표지 · 기니어스클럽')}</span></button>`).join('');
-    board.hidden = false; document.body.classList.add('boarding');
-    board.querySelectorAll('.cell').forEach((c) => c.addEventListener('click', () => { closeBoard(); enter(+c.dataset.i); }));
-  };
-  const closeBoard = () => { board.hidden = true; board.innerHTML = ''; document.body.classList.remove('boarding'); };
-
-  document.getElementById('prev').addEventListener('click', () => go(-1));
-  document.getElementById('next').addEventListener('click', () => go(1));
-  document.getElementById('replay').addEventListener('click', () => enter(idx));
-  document.getElementById('grid').addEventListener('click', () => (board.hidden ? openBoard() : closeBoard()));
-  document.getElementById('full').addEventListener('click', () => { const el = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen && el.requestFullscreen()).catch?.(() => {}); });
-  document.getElementById('dots').innerHTML = CFG.slides.map((s, i) => `<button aria-label="${i + 1}번 슬라이드">${i + 1}</button>`).join('');
-  document.querySelectorAll('#dots button').forEach((b, i) => b.addEventListener('click', () => enter(i)));
-  stage.addEventListener('click', (e) => { const r = stage.getBoundingClientRect(); go(e.clientX - r.left < r.width / 3 ? -1 : 1); });
+  board.addEventListener('click', (e) => { const c = e.target.closest('.cell'); if (c) { toggleBoard(false); enter(+c.dataset.i); } });
+  stage.addEventListener('click', (e) => go(e.clientX < innerWidth / 3 ? -1 : 1));
+  document.getElementById('prev').onclick = () => go(-1);
+  document.getElementById('next').onclick = () => go(1);
+  document.getElementById('replay').onclick = () => enter(idx);
+  document.getElementById('grid').onclick = () => toggleBoard();
+  document.getElementById('full').onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  scrub.max = N - 1; scrub.oninput = () => enter(+scrub.value);
   document.addEventListener('keydown', (e) => {
-    if (!board.hidden) { if (e.key === 'Escape' || e.key.toLowerCase() === 'o') closeBoard(); return; }
-    if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(1); }
-    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(-1); }
-    else if (e.key === 'Home') enter(0); else if (e.key === 'End') enter(N - 1);
-    else if (e.key.toLowerCase() === 'r') enter(idx);
-    else if (e.key.toLowerCase() === 'o') openBoard();
-    else if (e.key.toLowerCase() === 'f') document.getElementById('full').click();
-    else if (/^[0-9]$/.test(e.key)) enter(e.key === '0' ? 9 : +e.key - 1);
+    if (e.target.tagName === 'INPUT') return;
+    const k = e.key;
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ') { e.preventDefault(); go(1); }
+    else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); go(-1); }
+    else if (k === 'Home') enter(0); else if (k === 'End') enter(N - 1);
+    else if (k === 'o' || k === 'O') toggleBoard();
+    else if (k === 'r' || k === 'R') enter(idx);
+    else if (k === 'f' || k === 'F') document.getElementById('full').onclick();
+    else if (k === 'Escape' && !board.hidden) toggleBoard(false);
   });
-  if (q.get('clean') === '1') document.body.classList.add('clean');
-
-  const fonts = document.fonts ? Promise.all(["900 40px 'Pretendard'", "700 20px 'Silkscreen'", "900 40px 'Arial Black'"].map((f) => document.fonts.load(f))).then(() => document.fonts.ready) : Promise.resolve();
-  fonts.then(() => enter(idx), () => enter(idx));
+  window.addEventListener('hashchange', () => { const n = parseHash(); if (n !== idx) enter(n); });
+  const start = () => enter(parseHash());
+  (document.fonts ? Promise.all([document.fonts.load("700 40px 'Pretendard'"), document.fonts.load("600 40px 'Barlow Condensed'")]).then(() => document.fonts.ready) : Promise.resolve()).then(start, start);
 })();

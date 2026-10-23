@@ -3,63 +3,65 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>기니어스클럽 피치 덱</title>
-<meta name="description" content="Guinius Club — 혼자지만 외롭지 않은 몰입. 가상 펫 스터디룸 기획 배경, 포럼 텍스트 분석, AI 이미지 분류 실증, 확장 로드맵.">
+<title>기니피그·햄스터 데이터 리포트</title>
+<meta name="description" content="기니피그 반려인 포럼 텍스트 분석(질문 47건 · 931문단)과 기니피그/햄스터 이미지 분류 실험(사진 100장)을 정리한 인터랙티브 슬라이드 덱.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* 템플릿(references/template/motion-board-ppt.html)과 같은 방식으로 Pretendard를 상대 경로에서 불러온다 */
+/* references/template/motion-board-ppt.html의 스타일을 그대로 계승 */
 @font-face{font-family:'Pretendard';src:url('../references/template/fonts/PretendardVariable.woff2') format('woff2');font-weight:45 920;font-display:block}
-:root{--carbon:#21242e;--canvas:#7a8aba;--soft:#9fbee7;--indigo:#3d4f97;--amber:#ecab37;--signal:#f68d1f;--white:#fff}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--carbon);color:var(--white);font-family:'Pretendard',Arial,sans-serif;overflow:hidden}
-body{background:var(--carbon) radial-gradient(circle at 3px 3px,rgba(255,255,255,.06) 1.4px,transparent 1.6px) 0 0/10px 10px}
+html,body{margin:0;height:100%;background:#000;color:#1d1f20;font-family:'Pretendard',sans-serif;overflow:hidden}
 #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
-#stage svg{width:100vw;height:56.25vw;max-height:100vh;max-width:177.78vh;display:block;box-shadow:0 0 0 2px var(--indigo)}
+#stage svg{width:100vw;height:56.25vw;max-height:100vh;max-width:177.78vh;display:block}
 .fade-img{opacity:0;animation:fadeImg .6s ease-out forwards}
 @keyframes fadeImg{to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.fade-img{animation:none;opacity:1}}
 
-/* 하단 컨트롤 바: 템플릿 #bar 구조 계승 → Nintendo 카본 커맨드 슬랩 */
-#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:12px;align-items:center;padding:10px 18px calc(10px + env(safe-area-inset-bottom,0px));
-  background:var(--carbon);border-top:3px solid var(--indigo);opacity:0;transition:opacity .25s;font-size:13px;z-index:5}
+/* 하단 컨트롤 바 — 템플릿 #bar */
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:14px;align-items:center;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(29,45,61,.92);color:#f5f5f8;font-size:14px;opacity:0;transition:opacity .2s;z-index:5}
 body:hover #bar,#bar:focus-within,body.boarding #bar{opacity:1}
 body.clean #bar{display:none}
-#bar button{font:700 12px/1 Arial,sans-serif;letter-spacing:.5px;text-transform:uppercase;border:0;border-radius:2px;padding:9px 12px;cursor:pointer;
-  background:var(--amber);color:var(--carbon);box-shadow:inset 0 2px 0 rgba(255,255,255,.5),0 3px 0 var(--indigo);min-height:36px}
-#bar button:active{background:#e48600;transform:translateY(2px);box-shadow:inset 0 2px 0 rgba(255,255,255,.4),0 1px 0 var(--indigo)}
-#bar button:focus-visible{outline:2px solid var(--white);outline-offset:2px}
-#bar .round{border-radius:50%;width:40px;height:40px;padding:0;background:var(--signal);color:var(--white);font-size:16px}
-#dots{display:flex;gap:6px;flex:1;justify-content:center;flex-wrap:wrap}
-#dots button{width:34px;min-height:30px;padding:0;background:#60619c;color:var(--soft);font-family:'Silkscreen',monospace}
-#dots button[aria-current="true"]{background:var(--amber);color:var(--carbon)}
-#count{font-family:'Silkscreen',monospace;color:var(--amber);min-width:84px;text-align:center;font-size:15px}
-#help{color:var(--soft);font-size:12px;white-space:nowrap}
-@media (max-width:760px){#help,#dots{display:none}}
+#bar input[type=range]{flex:1;accent-color:#94bce3;min-width:60px}
+#bar button{background:none;border:1px solid rgba(245,245,248,.35);color:inherit;font:inherit;padding:6px 12px;cursor:pointer;min-height:34px}
+#bar button:hover,#bar button:focus-visible{border-color:#94bce3;outline:none}
+#count{font-family:'Barlow Condensed',sans-serif;font-size:20px;min-width:64px;text-align:center}
+#help{color:#b5d9fd;white-space:nowrap}
+@media (max-width:760px){#help{display:none}}
 
-/* 개요 보드: 템플릿 그리드 보드 계승 */
-#board{position:fixed;inset:0;overflow:auto;background:var(--canvas);display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;padding:24px 24px 90px;z-index:4;align-content:start}
+/* 개요 보드 — 템플릿 보드(header + grid) */
+#board{position:fixed;inset:0;overflow:auto;background:#e7e7ea;z-index:4;padding-bottom:80px}
 #board[hidden]{display:none}
-#board .cell{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:8px;background:#dedede;border:2px solid var(--indigo);padding:6px;box-shadow:0 4px 0 var(--indigo)}
-#board .cell:hover,#board .cell:focus-visible{border-color:var(--signal)}
-#board .thumb svg{width:100%;height:auto;display:block}
-#board .cap{display:flex;gap:10px;align-items:baseline;color:var(--carbon);font-weight:700;font-size:14px;padding:2px 4px 4px}
-#board .cap b{font-family:'Silkscreen',monospace;color:var(--indigo)}
+#board header{display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap;padding:32px 40px 8px}
+#board h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em}
+#board header p{margin:0;font-size:15px;color:#5d5d60}
+#cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:24px;padding:24px 40px 48px}
+#board .cell{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:10px}
+#board .thumb svg{width:100%;height:auto;display:block;border:1px solid #d4d4d7;background:#f2f2f3}
+#board .cell:hover svg,#board .cell:focus-visible svg{border-color:#416180}
+#board .cap{display:flex;gap:10px;font-size:15px;font-weight:600}
+#board .cap b{font-family:'Barlow Condensed',sans-serif;font-weight:600;color:#416180}
 </style>
 </head>
 <body>
 <div id="stage" aria-live="polite"></div>
-<div id="board" hidden></div>
+<div id="board" hidden>
+  <header>
+    <h1>기니피그·햄스터 데이터 리포트</h1>
+    <p>1920×1080 · 18장 · 카드를 누르면 그 장으로 이동</p>
+  </header>
+  <div id="cells"></div>
+</div>
 <div id="bar">
-  <button id="prev" class="round" aria-label="이전 슬라이드">◀</button>
-  <button id="next" class="round" aria-label="다음 슬라이드">▶</button>
-  <span id="count">01 / 10</span>
-  <div id="dots"></div>
+  <button id="grid">전체 보기</button>
+  <button id="prev" aria-label="이전 슬라이드">←</button>
+  <span id="count">01 / 18</span>
+  <button id="next" aria-label="다음 슬라이드">→</button>
+  <input id="scrub" type="range" min="0" max="17" step="1" value="0" aria-label="슬라이드 이동">
   <span id="help">← → 넘김 · O 전체 보기 · R 다시 재생 · F 전체 화면</span>
-  <button id="replay">Replay</button>
-  <button id="grid">Overview</button>
-  <button id="full">Full</button>
+  <button id="replay">다시 재생</button>
+  <button id="full">전체 화면</button>
 </div>
 <script src="deck-config.js"></script>
 <script src="deck-data.js"></script>
