@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대한민국 AI 이용 현황 · PPT 모션 보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+@font-face{font-family:'Pretendard';src:url('fonts/PretendardVariable.woff2') format('woff2');font-weight:45 920;font-display:block}
+*{box-sizing:border-box}
+html,body{margin:0;background:#e7e7ea;color:#1d1f20;font-family:'Pretendard',sans-serif}
+a{color:#416180}a:hover{color:#1d2d3d}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap;padding:32px 40px 8px}
+header h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em}
+header p{margin:0;font-size:15px;color:#5d5d60}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:24px;padding:24px 40px 48px}
+.cell{display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit}
+.cell svg{width:100%;height:auto;display:block;border:1px solid #d4d4d7;background:#f2f2f3}
+.cell span{display:flex;gap:10px;font-size:15px;font-weight:600}
+.cell b{font-family:'Barlow Condensed',sans-serif;font-weight:600;color:#416180}
+.cell:hover svg{border-color:#416180}
+body.single{background:#000;overflow:hidden}
+body.single header,body.single #grid{display:none}
+#stage{display:none;position:fixed;inset:0;align-items:center;justify-content:center}
+body.single #stage{display:flex}
+#stage svg{width:100vw;height:56.25vw;max-height:100vh;max-width:177.78vh;display:block}
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:16px;align-items:center;padding:12px 20px;background:rgba(29,45,61,.92);color:#f5f5f8;font-size:14px;opacity:0;transition:opacity .2s}
+body.single:hover #bar{opacity:1}
+body.clean #bar{display:none}
+#bar input[type=range]{flex:1;accent-color:#94bce3}
+#bar button,#bar label{background:none;border:1px solid rgba(245,245,248,.35);color:inherit;font:inherit;padding:6px 12px;cursor:pointer;display:flex;gap:6px;align-items:center}
+#bar button:hover,#bar label:hover{border-color:#94bce3}
+#bar a{color:#b5d9fd}
+</style>
+</head>
+<body>
+<header>
+  <h1>대한민국 AI 이용 현황 · PPT 모션 12종</h1>
+  <p>1920×1080 · 8초 반복(변환 2.2 / 완료 4.4 / 복귀 1.4) · 카드를 누르면 전체 화면</p>
+</header>
+<div id="grid"></div>
+<div id="stage"></div>
+<div id="bar">
+  <a href="?">← 보드</a>
+  <button id="play">일시정지</button>
+  <input id="scrub" type="range" min="0" max="8" step="0.01" value="0">
+  <span id="tc" style="font-family:'Barlow Condensed',sans-serif;font-size:18px;min-width:52px">0.00s</span>
+  <label><input id="once" type="checkbox">한 번만 재생</label>
+  <label><input id="chrome" type="checkbox" checked>제목·출처</label>
+</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="effects-a.js"></script>
+<script src="effects-b.js"></script>
+<script>
+(function () {
+  const { K, progress, chrome, FX } = window.MK;
+  const q = new URLSearchParams(location.search);
+  const ids = Object.keys(K.E).sort();
+  const st = { id: q.get('effect'), once: q.get('once') === '1', chrome: q.get('chrome') !== '0', t0: performance.now(), paused: q.has('t'), tFix: parseFloat(q.get('t') || '0') };
+  const frame = (id, t, withChrome, once) => {
+    const d = K.E[id], p = progress(t, once), dark = !!d.dark;
+    const bg = dark ? K.C.dark : K.C.bg;
+    const head = withChrome && id !== '12' ? chrome(d, once ? 1 : p, dark) : '';
+    return `<svg viewBox="0 0 ${K.W} ${K.H}" xmlns="http://www.w3.org/2000/svg"><rect width="${K.W}" height="${K.H}" fill="${bg}"/>${head}${FX[id](p, d)}</svg>`;
+  };
+  window.renderFrame = frame; // 외부 캡처 도구용: renderFrame('03', 2.2, true, false)
+  const now = () => st.paused ? st.tFix : (performance.now() - st.t0) / 1000;
+  const start = () => {
+    if (st.id && K.E[st.id]) {
+      document.body.classList.add('single');
+      if (q.get('clean') === '1') document.body.classList.add('clean');
+      const stage = document.getElementById('stage'), scrub = document.getElementById('scrub'), tc = document.getElementById('tc'), play = document.getElementById('play');
+      const once = document.getElementById('once'), ch = document.getElementById('chrome');
+      once.checked = st.once; ch.checked = st.chrome;
+      once.onchange = () => { st.once = once.checked; st.t0 = performance.now(); st.tFix = 0; };
+      ch.onchange = () => { st.chrome = ch.checked; };
+      const toggle = () => { if (st.paused) { st.t0 = performance.now() - st.tFix * 1000; st.paused = false; } else { st.tFix = now(); st.paused = true; } play.textContent = st.paused ? '재생' : '일시정지'; };
+      play.onclick = toggle;
+      document.addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); toggle(); } if (e.key === 'r') { st.t0 = performance.now(); st.tFix = 0; } });
+      scrub.oninput = () => { st.paused = true; st.tFix = parseFloat(scrub.value); play.textContent = '재생'; };
+      const loop = () => {
+        let t = now(); const shown = st.once ? Math.min(t, K.LOOP) : t % K.LOOP;
+        stage.innerHTML = frame(st.id, t, st.chrome, st.once);
+        if (!st.paused) scrub.value = shown; tc.textContent = shown.toFixed(2) + 's';
+        requestAnimationFrame(loop);
+      };
+      document.title = st.id + ' ' + K.E[st.id].name;
+      loop();
+    } else {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = ids.map((id) => `<a class="cell" href="?effect=${id}"><div data-id="${id}"></div><span><b>${id}</b>${K.E[id].name}</span></a>`).join('');
+      const slots = [...grid.querySelectorAll('[data-id]')];
+      const loop = () => { const t = now(); slots.forEach((el) => el.innerHTML = frame(el.dataset.id, t, true, false)); requestAnimationFrame(loop); };
+      loop();
+    }
+  };
+  (document.fonts ? Promise.all([document.fonts.load("700 40px 'Pretendard'"), document.fonts.load("600 40px 'Barlow Condensed'")]).then(() => document.fonts.ready) : Promise.resolve()).then(start, start);
+})();
+</script>
+</body>
+</html>
