@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>0.5초의 나비효과 · F1 레이스 전략 × 팬덤 여론</title>
+<title>0.5초의 나비효과 · F1 레이스 전략 × 팬심</title>
 <meta name="description" content="Kaggle 피트스톱 2,330건과 Firecrawl 팬·미디어 텍스트 51.8만 자를 교차 분석한 F1 2022–2024 레이스 전략 슬라이드덱">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- 색·팀 컬러·HUD 카드·타이어 뱃지: references/design/f1-assets.css -->
@@ -20,6 +20,17 @@
   --display:'Chakra Petch','Pretendard',sans-serif;
   --mono:'JetBrains Mono','Pretendard',monospace;
   --body:'Pretendard',sans-serif;
+  /* Clean White Theme — f1-assets.css의 다크 기본값을 덮어쓴다. 레드·팀 컬러는 그대로 */
+  --f1-bg-primary:#F8F9FA;
+  --f1-surface-card:#FFFFFF;
+  --f1-surface-border:#E5E7EB;
+  --f1-text-primary:#111827;
+  --f1-text-secondary:#6B7280;
+  --f1-cyan:#0D9488;          /* 화이트 위 대비 확보한 틸 */
+  --f1-yellow:#F59E0B;
+  --f1-purple:#9333EA;
+  --ink2:#374151;
+  --shadow:0 1px 2px rgba(17,24,39,.04),0 6px 20px rgba(17,24,39,.06);
 }
 html,body{height:100%}
 body{background:var(--f1-bg-primary);font-family:var(--body)}
@@ -27,24 +38,22 @@ body{background:var(--f1-bg-primary);font-family:var(--body)}
 .slide-container{position:relative;flex:none;width:1920px;height:1080px;overflow:hidden;background:var(--f1-bg-primary)}
 
 /* ── 템플릿 16:9 그리드: 키커 y≈132 · 제목 y≈214 · 본문 290–940 · 출처선 988 · 출처 1030 ── */
-.slide{position:absolute;inset:0;display:none;background:
-  radial-gradient(1200px 600px at 85% -10%,rgba(0,245,212,.06),transparent 60%),
-  linear-gradient(180deg,rgba(255,255,255,.015),transparent 40%),var(--f1-bg-primary)}
-.slide::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
-  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+.slide{position:absolute;inset:0;display:none;background:var(--f1-bg-primary)}
+.slide::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.6;
+  background-image:linear-gradient(rgba(17,24,39,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(17,24,39,.025) 1px,transparent 1px);
   background-size:160px 90px}
-.kicker{position:absolute;left:var(--pad-x);top:100px;font:600 28px/1 var(--display);letter-spacing:.06em;color:var(--f1-cyan);display:flex;gap:18px;align-items:center}
-.kicker .tag{font:700 20px/1 var(--mono);color:var(--f1-bg-primary);background:var(--f1-cyan);padding:6px 10px;border-radius:4px;letter-spacing:.04em}
-.title{position:absolute;left:var(--pad-x);right:var(--pad-x);top:150px;margin:0;font:700 64px/1.12 var(--display);letter-spacing:-.02em;color:var(--f1-text-primary)}
+.kicker{position:absolute;left:var(--pad-x);top:100px;font:700 26px/1 var(--body);letter-spacing:.02em;color:var(--f1-red);display:flex;gap:18px;align-items:center}
+.kicker .tag{font:700 20px/1 var(--mono);color:#fff;background:var(--f1-text-primary);padding:6px 10px;border-radius:4px;letter-spacing:.04em}
+.title{position:absolute;left:var(--pad-x);right:var(--pad-x);top:150px;margin:0;font:800 64px/1.12 var(--body);letter-spacing:-.03em;color:var(--f1-text-primary)}
 .title em{font-style:normal;color:var(--f1-red)}
 .title .cy{color:var(--f1-cyan)}
-.lede{position:absolute;left:var(--pad-x);right:var(--pad-x);top:232px;margin:0;font:500 26px/1.3 var(--body);color:var(--f1-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lede{position:absolute;left:var(--pad-x);right:var(--pad-x);top:234px;margin:0;font:500 27px/1.3 var(--body);color:var(--f1-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lede::before{content:"";display:inline-block;width:18px;height:3px;background:var(--f1-red);vertical-align:middle;margin-right:14px}
 .sectors{position:absolute;right:var(--pad-x);top:92px;display:flex;gap:8px}
-.sectors .sec{width:150px;display:flex;flex-direction:column;gap:8px;font:600 15px/1 var(--display);letter-spacing:.02em;color:#5b6577}
-.sectors .sec i{display:block;height:5px;border-radius:3px;background:#242B3B}
-.sectors .sec.done{color:var(--f1-text-secondary)} .sectors .sec.done i{background:#3a4458}
-.sectors .sec.on{color:var(--f1-text-primary)} .sectors .sec.on i{background:var(--f1-purple);box-shadow:0 0 12px rgba(177,0,205,.6)}
+.sectors .sec{width:150px;display:flex;flex-direction:column;gap:8px;font:600 16px/1 var(--body);color:#9CA3AF}
+.sectors .sec i{display:block;height:5px;border-radius:3px;background:#E5E7EB}
+.sectors .sec.done{color:var(--f1-text-secondary)} .sectors .sec.done i{background:#9CA3AF}
+.sectors .sec.on{color:var(--f1-text-primary)} .sectors .sec.on i{background:var(--f1-red)}
 /* 표지 자동차: 왼쪽에서 달려 들어와 텔레메트리 선 위에 선다 */
 .slide .car{opacity:0;transform:translateX(-900px)}
 .slide.play .car{animation:drive 1.8s var(--ease) .35s forwards}
@@ -59,59 +68,60 @@ body{background:var(--f1-bg-primary);font-family:var(--body)}
 .footer{position:absolute;left:var(--pad-x);right:var(--pad-x);top:988px;border-top:1px solid var(--f1-surface-border);padding-top:18px;display:flex;justify-content:space-between;align-items:baseline;font:400 22px/1.3 var(--body);color:var(--f1-text-secondary)}
 .footer>span:first-child{flex:1;min-width:0;margin-right:32px}
 .footer .pg{font:700 24px/1 var(--mono);color:var(--f1-text-secondary)}
-.footer .pg b{color:var(--f1-cyan)}
+.footer .pg b{color:var(--f1-red)}
 .split{grid-template-columns:38fr 62fr}      /* F1_design 4-3: 좌 35–40% 결론 / 우 60–65% 데이터 */
 .split.rev{grid-template-columns:62fr 38fr}
 .col{display:flex;flex-direction:column;gap:24px;min-width:0}
 
 /* HUD 카드 확장 (기본은 f1-assets.css .hud-card) */
-.hud-card{position:relative;transition:background .2s,border-color .2s,box-shadow .2s;overflow:hidden}
-.hud-card:hover{background:#1B2130}
-.hud-card::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--line,var(--f1-cyan))}
-.hud-card.cut{clip-path:polygon(0 0,calc(100% - 28px) 0,100% 28px,100% 100%,0 100%)}
-.label{font:600 19px/1.25 var(--display);letter-spacing:.04em;color:var(--f1-text-secondary)}
+.hud-card{position:relative;transition:border-color .2s,box-shadow .2s;overflow:hidden;background:#fff;border:1px solid var(--f1-surface-border);box-shadow:var(--shadow)}
+.hud-card:hover{background:#fff;border-color:#D1D5DB;box-shadow:0 2px 4px rgba(17,24,39,.05),0 12px 28px rgba(17,24,39,.09)}
+.hud-card::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--line,var(--f1-cyan))}
+.hud-card.cut{clip-path:none}
+.label{font:600 20px/1.3 var(--body);color:var(--f1-text-secondary)}
 .big{font:700 120px/1 var(--mono);letter-spacing:-.04em;color:var(--f1-text-primary)}
-.big.red{color:var(--f1-red)} .big.cy{color:var(--f1-cyan)} .big.ye{color:var(--f1-yellow)} .big.pu{color:var(--f1-purple)}
-.mid{font:700 56px/1 var(--mono);letter-spacing:-.03em}
+.big.red{color:var(--f1-red)} .big.cy{color:var(--f1-cyan)} .big.ye{color:#B45309} .big.pu{color:var(--f1-purple)}
+.mid{font:700 56px/1 var(--mono);letter-spacing:-.03em;color:var(--f1-text-primary)}
 .unit{font:500 .4em/1 var(--body);color:var(--f1-text-secondary);margin-left:.12em;letter-spacing:0}
 .txt{font:400 26px/1.6 var(--body);color:var(--f1-text-primary);margin:0}
 .txt.sm{font-size:22px;line-height:1.55;color:var(--f1-text-secondary)}
-.txt b{color:var(--f1-cyan);font-weight:700}
+.txt b{color:#0F766E;font-weight:700}
 .txt strong{color:var(--f1-red);font-weight:700}
 .mono{font-family:var(--mono)}
-.chip{display:inline-flex;align-items:center;gap:8px;font:700 18px/1 var(--mono);padding:8px 12px;border-radius:6px;border:1px solid var(--f1-surface-border);color:var(--f1-text-primary);background:#0F131B}
+.chip{display:inline-flex;align-items:center;gap:8px;font:700 18px/1 var(--mono);padding:8px 12px;border-radius:6px;border:1px solid var(--f1-surface-border);color:var(--f1-text-primary);background:#F3F4F6}
 .delta-badge{display:inline-flex;align-items:center;font:700 22px/1 var(--mono);padding:7px 12px;border-radius:6px}
-.delta-badge.slow{color:#fff;background:var(--f1-red)} .delta-badge.fast{color:var(--f1-bg-primary);background:var(--f1-cyan)}
-.delta-badge.best{color:#fff;background:var(--f1-purple)} .delta-badge.warn{color:var(--f1-bg-primary);background:var(--f1-yellow)}
-.team-tag{display:inline-flex;align-items:center;gap:10px;font:700 20px/1 var(--display);letter-spacing:.06em;text-transform:uppercase}
-.team-tag::before{content:"";width:3px;height:22px;background:var(--tc)}
+.delta-badge.slow{color:#fff;background:var(--f1-red)} .delta-badge.fast{color:#fff;background:#0D9488}
+.delta-badge.best{color:#fff;background:var(--f1-purple)} .delta-badge.warn{color:#111827;background:var(--f1-yellow)}
+.team-tag{display:inline-flex;align-items:center;gap:10px;font:700 21px/1 var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--f1-text-primary)}
+.team-tag::before{content:"";width:5px;height:22px;border-radius:2px;background:var(--tc)}
 .verdict{font:700 20px/1 var(--display);letter-spacing:.08em;padding:8px 14px;border-radius:6px}
-.verdict.ok{background:rgba(0,245,212,.12);color:var(--f1-cyan);border:1px solid rgba(0,245,212,.4)}
-.verdict.no{background:rgba(225,6,0,.14);color:#ff4d48;border:1px solid rgba(225,6,0,.45)}
+.verdict.ok{background:#CCFBF1;color:#0F766E;border:1px solid #99F6E4}
+.verdict.no{background:#FEE2E2;color:#B91C1C;border:1px solid #FECACA}
 .quote{font:500 24px/1.5 var(--body);color:var(--f1-text-primary);margin:0}
-.quote::before{content:"“";color:var(--f1-cyan);font:700 40px/0 var(--display);margin-right:6px;vertical-align:-14px}
+.quote::before{content:"“";color:var(--f1-red);font:700 40px/0 var(--display);margin-right:6px;vertical-align:-14px}
 .quote cite{display:block;margin-top:10px;font:400 18px/1.3 var(--mono);font-style:normal;color:var(--f1-text-secondary)}
 .chart-box{position:relative}
 .chart-box canvas{display:block}
 .seg{display:flex;gap:8px}
-.seg button{font:700 18px/1 var(--display);letter-spacing:.04em;color:var(--f1-text-secondary);background:#0F131B;border:1px solid var(--f1-surface-border);padding:12px 16px;border-radius:6px;cursor:pointer}
-.seg button[aria-pressed="true"]{color:var(--f1-bg-primary);background:var(--f1-cyan);border-color:var(--f1-cyan)}
+.seg button{font:700 18px/1 var(--body);color:var(--f1-text-secondary);background:#F3F4F6;border:1px solid var(--f1-surface-border);padding:12px 16px;border-radius:6px;cursor:pointer}
+.seg button[aria-pressed="true"]{color:#fff;background:var(--f1-text-primary);border-color:var(--f1-text-primary)}
 .seg button:focus-visible{outline:2px solid var(--f1-cyan);outline-offset:2px}
 
 /* 피트스톱 진행 게이지 (F1_design 5) */
-.gauge{height:14px;background:#0F131B;border:1px solid var(--f1-surface-border);border-radius:7px;overflow:hidden}
+.gauge{height:14px;background:#F3F4F6;border:1px solid var(--f1-surface-border);border-radius:7px;overflow:hidden}
 .gauge i{display:block;height:100%;border-radius:7px;background:var(--gc,var(--f1-cyan))}
 
 /* 타이밍 타워 표 */
-.tower{width:100%;border-collapse:separate;border-spacing:0 6px;font:500 22px/1 var(--body)}
-.tower th{font:600 17px/1.2 var(--display);letter-spacing:.04em;color:var(--f1-text-secondary);text-align:right;padding:0 14px 6px}
+.tower{width:100%;border-collapse:separate;border-spacing:0 7px;font:500 24px/1 var(--body);color:var(--f1-text-primary)}
+.tower th{font:600 19px/1.2 var(--body);color:var(--f1-text-secondary);text-align:right;padding:0 14px 6px}
 .tower th:first-child,.tower th:nth-child(2){text-align:left}
 .tower td{background:var(--f1-surface-card);padding:12px 14px;text-align:right;font-family:var(--mono);border-top:1px solid var(--f1-surface-border);border-bottom:1px solid var(--f1-surface-border)}
 .tower td:first-child{border-left:1px solid var(--f1-surface-border);border-radius:8px 0 0 8px;text-align:left;color:var(--f1-text-secondary);width:60px}
 .tower td:last-child{border-right:1px solid var(--f1-surface-border);border-radius:0 8px 8px 0}
 .tower td.tn{text-align:left;font-family:var(--display)}
-.tower tr:hover td{background:#1B2130}
-.hot{color:#ff4d48} .cool{color:var(--f1-cyan)} .best{color:#d65cf0}
+.tower tr:hover td{background:#F9FAFB}
+.hot{color:#DC2626} .cool{color:#0D9488} .best{color:var(--f1-purple);font-weight:700}
+.tyre-hard{border-color:#6B7280!important;color:#374151!important}
 
 /* ── 템플릿 진입 모션: 위로 24px 떠오르며 등장(eo), 막대 성장, 마스크 타이틀, 탄성 팝(back) ── */
 .slide .a{opacity:0;transform:translateY(24px)}
@@ -141,17 +151,17 @@ body.still .slide .line-draw{stroke-dashoffset:0!important;animation:none!import
 }
 
 /* 진행 표시 (slide-engine.js가 .f1-progress-bar 너비를 갱신) */
-.progress{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.04);z-index:5}
-.f1-progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--f1-red),var(--f1-cyan));transition:width .5s var(--ease)}
+.progress{position:absolute;left:0;right:0;bottom:0;height:4px;background:#E5E7EB;z-index:5}
+.f1-progress-bar{height:100%;width:0;background:var(--f1-red);transition:width .5s var(--ease)}
 
 /* 하단 조작 바 — 템플릿 #bar 구조 */
 #bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));
-  background:rgba(11,13,18,.88);border-top:1px solid var(--f1-surface-border);opacity:0;transition:opacity .2s;z-index:20;font:600 14px/1 var(--display)}
+  background:rgba(255,255,255,.92);border-top:1px solid var(--f1-surface-border);box-shadow:0 -4px 16px rgba(17,24,39,.06);opacity:0;transition:opacity .2s;z-index:20;font:600 14px/1 var(--display)}
 body:hover #bar,#bar:focus-within{opacity:1}
 body.clean #bar{display:none}
 #bar button{font:700 14px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--f1-text-primary);background:var(--f1-surface-card);border:1px solid var(--f1-surface-border);padding:10px 14px;border-radius:6px;cursor:pointer;min-height:40px}
-#bar button:hover,#bar button:focus-visible{border-color:var(--f1-cyan);outline:none;box-shadow:0 0 16px rgba(0,245,212,.15)}
-#count{font:700 18px/1 var(--mono);color:var(--f1-cyan);min-width:84px;text-align:center}
+#bar button:hover,#bar button:focus-visible{border-color:var(--f1-red);outline:none}
+#count{font:700 18px/1 var(--mono);color:var(--f1-red);min-width:84px;text-align:center}
 #hint{color:var(--f1-text-secondary);font:400 13px/1 var(--body)}
 @media (max-width:700px){#hint{display:none}}
 </style>
