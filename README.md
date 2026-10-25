@@ -10,7 +10,7 @@
 
 ## F1 레이스 전략 × 팬덤 여론 (2022–2024) — `slides/f1/`
 
-0.5초의 나비효과: Kaggle 피트스톱 2,330건 · 언더컷 195건과 Firecrawl 팬·미디어 텍스트 51.8만 자를 교차 분석한 인터랙티브 덱 11장.
+0.5초의 나비효과: Kaggle 피트스톱 2,330건 · 언더컷 195건과 Firecrawl 팬·미디어 텍스트 51.8만 자를 교차 분석한 인터랙티브 덱 12장.
 
 - 보기: `slides/f1/index.html` (←/→/Space 넘김 · F 전체 화면 · R 다시 재생 · 주소 끝 `#번호`)
 - 디자인: `references/design/` (f1-assets.css 팀 컬러·HUD, slide-engine.js 1920×1080 스케일러·키보드) + `references/template/` (그리드·폰트·모션)

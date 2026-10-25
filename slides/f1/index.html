@@ -38,6 +38,23 @@ body{background:var(--f1-bg-primary);font-family:var(--body)}
 .title{position:absolute;left:var(--pad-x);right:var(--pad-x);top:150px;margin:0;font:700 64px/1.12 var(--display);letter-spacing:-.02em;color:var(--f1-text-primary)}
 .title em{font-style:normal;color:var(--f1-red)}
 .title .cy{color:var(--f1-cyan)}
+.lede{position:absolute;left:var(--pad-x);right:var(--pad-x);top:232px;margin:0;font:500 26px/1.3 var(--body);color:var(--f1-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lede::before{content:"";display:inline-block;width:18px;height:3px;background:var(--f1-red);vertical-align:middle;margin-right:14px}
+.sectors{position:absolute;right:var(--pad-x);top:92px;display:flex;gap:8px}
+.sectors .sec{width:150px;display:flex;flex-direction:column;gap:8px;font:600 15px/1 var(--display);letter-spacing:.02em;color:#5b6577}
+.sectors .sec i{display:block;height:5px;border-radius:3px;background:#242B3B}
+.sectors .sec.done{color:var(--f1-text-secondary)} .sectors .sec.done i{background:#3a4458}
+.sectors .sec.on{color:var(--f1-text-primary)} .sectors .sec.on i{background:var(--f1-purple);box-shadow:0 0 12px rgba(177,0,205,.6)}
+/* 표지 자동차: 왼쪽에서 달려 들어와 텔레메트리 선 위에 선다 */
+.slide .car{opacity:0;transform:translateX(-900px)}
+.slide.play .car{animation:drive 1.8s var(--ease) .35s forwards}
+.slide .car .wheel{transform-box:fill-box;transform-origin:center}
+.slide.play .car .wheel{animation:spin 1.8s var(--ease) .35s both}
+.slide .car .speed{opacity:0}
+.slide.play .car .speed{animation:speed 2.2s ease-out .35s forwards}
+@keyframes drive{0%{opacity:0;transform:translateX(-900px)}15%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes spin{from{transform:rotate(-1080deg)}to{transform:none}}
+@keyframes speed{0%{opacity:0}25%{opacity:.8}100%{opacity:.35}}
 .body{position:absolute;left:var(--pad-x);right:var(--pad-x);top:290px;height:650px;display:grid;gap:32px}
 .footer{position:absolute;left:var(--pad-x);right:var(--pad-x);top:988px;border-top:1px solid var(--f1-surface-border);padding-top:18px;display:flex;justify-content:space-between;align-items:baseline;font:400 22px/1.3 var(--body);color:var(--f1-text-secondary)}
 .footer>span:first-child{flex:1;min-width:0;margin-right:32px}
@@ -114,10 +131,13 @@ body{background:var(--f1-bg-primary);font-family:var(--body)}
 @keyframes unmask{to{transform:none}}
 @keyframes draw{to{stroke-dashoffset:0}}
 body.still .slide .a,body.still .slide .pop,body.still .slide .grow,body.still .mask>span{opacity:1!important;transform:none!important;animation:none!important}
+body.still .slide .car{opacity:1!important;transform:none!important;animation:none!important}
+body.still .slide .car .wheel,body.still .slide .car .speed{animation:none!important;opacity:1}
 body.still .slide .line-draw{stroke-dashoffset:0!important;animation:none!important}
 @media (prefers-reduced-motion:reduce){
   .slide .a,.slide .pop,.slide .grow,.mask>span{opacity:1!important;transform:none!important;animation:none!important}
   .slide .line-draw{stroke-dashoffset:0!important;animation:none!important}
+  .slide .car,.slide .car .wheel,.slide .car .speed{opacity:1!important;transform:none!important;animation:none!important}
 }
 
 /* 진행 표시 (slide-engine.js가 .f1-progress-bar 너비를 갱신) */
@@ -145,7 +165,7 @@ body.clean #bar{display:none}
 </div>
 <div id="bar">
   <button id="prev" aria-label="이전 슬라이드">◀ Prev</button>
-  <span id="count">01 / 11</span>
+  <span id="count">01 / 12</span>
   <button id="next" aria-label="다음 슬라이드">Next ▶</button>
   <button id="replay">Replay</button>
   <button id="full">Full</button>
