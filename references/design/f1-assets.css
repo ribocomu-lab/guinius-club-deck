@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@400;700&family=Pretendard:wght@400;600;700&display=swap');
+
+:root {
+  /* System Base & Theme */
+  --f1-bg-primary: #0B0D12;
+  --f1-surface-card: #141822;
+  --f1-surface-border: #242B3B;
+  --f1-text-primary: #F5F7FA;
+  --f1-text-secondary: #8F9CAE;
+  
+  /* Racing Accents */
+  --f1-red: #E10600;
+  --f1-cyan: #00F5D4;
+  --f1-purple: #B100CD;
+  --f1-yellow: #FFC700;
+
+  /* Official Team Colors */
+  --team-redbull: #3671C6;
+  --team-ferrari: #E8002D;
+  --team-mclaren: #FF8000;
+  --team-mercedes: #27F4D2;
+  --team-astonmartin: #229971;
+  --team-alpine: #0093CC;
+  --team-williams: #64C4FF;
+  --team-rb: #6692FF;
+  --team-sauber: #52E252;
+  --team-haas: #B6BABD;
+
+  /* Typography */
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: 'Pretendard', sans-serif;
+}
+
+/* Base Utility Classes */
+body {
+  margin: 0;
+  background-color: var(--f1-bg-primary);
+  color: var(--f1-text-primary);
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+.hud-card {
+  background: var(--f1-surface-card);
+  border: 1px solid var(--f1-surface-border);
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.hud-card:hover {
+  border-color: rgba(0, 245, 212, 0.4);
+  box-shadow: 0 0 20px rgba(0, 245, 212, 0.12);
+}
+
+/* Tyre Badges */
+.tyre-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  border: 2px solid;
+}
+.tyre-soft { border-color: var(--f1-red); color: var(--f1-red); }
+.tyre-medium { border-color: var(--f1-yellow); color: var(--f1-yellow); }
+.tyre-hard { border-color: #FFFFFF; color: #FFFFFF; }
