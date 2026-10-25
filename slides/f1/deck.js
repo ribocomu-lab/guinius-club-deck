@@ -1,4 +1,4 @@
-// F1 레이스 전략 × 팬덤 여론 덱 — 에디토리얼 레이아웃(박스 없는 2단 구성) · Chart.js 차트 · 진입 모션
+// F1 레이스 전략 × 팬덤 여론 덱 — 슬라이드 마크업 생성 · Chart.js 차트 · 진입 모션 (화이트 테마)
 // 수치는 전부 deck-data.js(window.F1, 자동 생성)에서 읽는다. 슬라이드 전환·스케일·키보드는 references/design/slide-engine.js.
 (function () {
   const D = window.F1, M = D.meta;
@@ -7,42 +7,31 @@
   const css = getComputedStyle(document.documentElement);
   const cv = (n) => css.getPropertyValue(n).trim();
   const teamColor = (t) => cv('--team-' + TEAM_VAR[t]);
-  // 화이트 캔버스용 팔레트 — 차트·SVG에서 쓰는 색은 여기서만 정한다
+  // 화이트 배경용 팔레트 — 차트·SVG에서 쓰는 색은 여기서만 정한다
   const P = { ink: '#111827', ink2: '#374151', sub: '#6B7280', line: '#E5E7EB', grid: 'rgba(17,24,39,0.06)', card: '#FFFFFF',
     red: '#E10600', teal: '#0D9488', tealFill: '#14B8A6', amber: '#F59E0B', purple: '#9333EA' };
   const T = Object.fromEntries(D.teams.map((t) => [t.team, t]));
   const nf = (v, d = 0) => Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const sg = (v, d = 2) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v), d);
   const pv = (p) => p < 0.001 ? 'p < 0.001' : 'p = ' + (p < 0.01 ? p.toFixed(3) : p.toFixed(2));
+  const tag = (t) => `<span class="team-tag" style="--tc:${teamColor(t)}">${t}</span>`;
   const r0 = (v) => Math.round(v);
-  // 팀 이름 앞에 팀 컬러 짧은 선만 둔다(박스·태그 없음)
-  const tn = (t) => `<span class="tname"><i style="background:${teamColor(t)}"></i>${t}</span>`;
+  // 카운트업 숫자: data-count 값까지 템플릿 eo 이징으로 증가
   const count = (v, d = 0, pre = '', suf = '') => `<span data-count="${v}" data-dec="${d}" data-pre="${pre}" data-suf="${suf}">${pre}${nf(v, d)}${suf}</span>`;
   const N = 12;
 
   const slides = [];
   const charts = {};   // 슬라이드 번호 → 차트 생성 함수 목록
-  // 에디토리얼 2단: 좌측 = 아이브로우 + 대형 헤드라인 + 컨텍스트(+빅넘버), 우측 = 데이터 행 또는 차트
-  const ED = ({ eyebrow, hl, ctx, left = '', right, source, rightTop = false }) => {
-    const i = slides.length + 1;
-    slides.push({ raw: `
-    <div class="ed-left">
-      <div class="eyebrow a" style="--d:0s">${eyebrow}</div>
-      <h2 class="hl a" style="--d:.08s">${hl}</h2>
-      ${ctx ? `<p class="ctx a" style="--d:.2s">${ctx}</p>` : ''}
-      ${left}
-    </div>
-    <div class="ed-right${rightTop ? ' top' : ''}">${right}</div>
-    <div class="footer a" style="--d:.6s"><span>${source}</span><span class="pg"><b>${String(i).padStart(2, '0')}</b> / ${N}</span></div>` });
-  };
-  const rows = (items, d0 = .3) => `<div class="rows">${items.map(([k, v, s], j) =>
-    `<div class="row a" style="--d:${d0 + j * 0.08}s"><span class="k">${k}${s ? `<span class="s">${s}</span>` : ''}</span><span class="v">${v}</span></div>`).join('')}</div>`;
-  const ans = (ok) => `<span class="ans ${ok ? 'yes' : 'no'}">${ok ? '그렇다' : '아니다'}</span>`;
+  const S = (kicker, title, body, source, opt = {}) => slides.push({ kicker, title, body, source, ...opt });
 
-  const a = D.h1a, b = D.h1b, se = D.sent, c1 = D.corr.err_trust;
+  // ── 스토리라인: 시작 → ① 피트 → 순위 → ② 실수 → 여론 → ③ 정리. 오른쪽 위 막대로 현재 위치를 보여 준다
+  const SECTORS = ['시작', '① 피트 → 순위', '② 실수 → 여론', '③ 정리'];
+  const sectorBar = (cur) => `<div class="sectors a" style="--d:.05s" aria-label="이야기 위치: ${SECTORS[cur]}">${SECTORS.map((t, j) =>
+    `<div class="sec${j === cur ? ' on' : j < cur ? ' done' : ''}"><span>${t}</span><i></i></div>`).join('')}</div>`;
+
+  const a = D.h1a, b = D.h1b, se = D.sent, dist = se.dist, c1 = D.corr.err_trust;
   const rb = T['Red Bull'], hs = T.Haas, ml = T.McLaren, fe = T.Ferrari, sa = T.Sauber, sb = D.sauber;
   const gap = r0((hs.delay - rb.delay) * 10) / 10;
-  const ratio = r0(se.pit_err.crit / se.pit_err.ref);
 
   // ── 01 표지
   slides.push({ raw: `
@@ -70,92 +59,193 @@
       <g class="wheel"><circle cx="172" cy="178" r="56" fill="#0B0D12"/><circle cx="172" cy="178" r="44" fill="none" stroke="${P.red}" stroke-width="4"/><circle cx="172" cy="178" r="28" fill="#374151"/><path d="M172 152 L172 204 M146 178 L198 178" stroke="#9CA3AF" stroke-width="4"/></g>
       <g class="wheel"><circle cx="694" cy="182" r="50" fill="#0B0D12"/><circle cx="694" cy="182" r="39" fill="none" stroke="${P.red}" stroke-width="4"/><circle cx="694" cy="182" r="25" fill="#374151"/><path d="M694 159 L694 205 M671 182 L717 182" stroke="#9CA3AF" stroke-width="4"/></g>
     </svg>
-    <div class="eyebrow a" style="--d:0s;position:absolute;left:100px;top:110px">F1 2022–2024 · 레이스 전략 × 팬심</div>
-    <h1 style="position:absolute;left:100px;top:170px;margin:0;font:800 160px/1.02 var(--body);letter-spacing:-.05em;color:var(--f1-text-primary)">
-      <span class="mask"><span style="--d:.1s"><span class="mono" style="color:var(--f1-red);letter-spacing:-.06em">0.5</span>초의</span></span>
+    <div class="kicker a" style="--d:0s"><span class="tag">F1 2022–2024</span>레이스 전략 × 팬심 데이터 분석</div>
+    <h1 style="position:absolute;left:100px;top:230px;margin:0;font:700 150px/1.02 var(--display);letter-spacing:-.03em;color:var(--f1-text-primary)">
+      <span class="mask"><span style="--d:.1s"><span class="mono" style="color:var(--f1-red)">0.5</span>초의</span></span>
       <span class="mask"><span style="--d:.25s">나비효과</span></span>
     </h1>
-    <p class="ctx a" style="--d:.6s;position:absolute;left:100px;top:540px;margin:0;font-size:34px">피트스톱 0.5초가 순위를 바꾸고, 팬심은 기대를 따라 움직인다</p>
-    <div style="position:absolute;left:1180px;right:100px;top:200px">${rows([
-      ['경기 기록', `${count(M.stops)}<span class="u">번의 피트스톱</span>`],
-      ['팬·미디어 글', `${count(M.sentences)}<span class="u">문장</span>`],
-      ['분석 범위', `10<span class="u">개 팀 · 3시즌</span>`]], .35)}</div>
+    <p class="txt a" style="--d:.6s;position:absolute;left:100px;top:600px;font-size:34px;color:var(--f1-text-secondary)">피트스톱 0.5초가 순위를 바꾸고, 팬심은 <b>기대</b>를 따라 움직인다</p>
+    <div style="position:absolute;right:100px;top:120px;width:520px;display:flex;flex-direction:column;gap:16px">
+      <div class="hud-card a" style="--d:.35s;--line:var(--f1-red)">
+        <div class="label">데이터 ① 경기 기록</div>
+        <div class="mid" style="margin:12px 0 4px">${count(M.stops)}<span class="unit">번의 피트스톱</span></div>
+      </div>
+      <div class="hud-card a" style="--d:.5s">
+        <div class="label">데이터 ② 팬·미디어 글</div>
+        <div class="mid" style="margin:12px 0 4px">${count(M.docs)}<span class="unit">건 · ${nf(M.sentences)}문장</span></div>
+      </div>
+    </div>
     <div class="footer a" style="--d:.8s"><span>Kaggle(F1 경기 기록) · Firecrawl(F1Technical · Autosport · RaceFans 외) · 2026-10</span><span class="pg"><b>01</b> / ${N}</span></div>` });
 
   // ── 02 기획 의도
-  ED({ eyebrow: '기획 의도', hl: '빠른 피트가<br>사랑받는 팀을<br>만들까?',
-    ctx: `경기 기록 ${nf(M.stops)}건과 팬·미디어 글 ${nf(M.sentences)}문장을 같은 10개 팀·3시즌으로 맞춰 확인했다. 답은 둘로 갈렸다 — 0.5초는 순위를 바꾸지만, 팬심은 <b>기대</b>를 따른다.`,
-    right: rows([
-      ['0.5초 늦으면 순위가 떨어질까?', ans(true), `3바퀴 뒤 ${sg(a.effect05)}계단`],
-      ['피트가 느리면 추월 작전이 실패할까?', ans(true), `언더컷 성공률 ${r0(b.ok)}% → ${r0(b.slow)}%`],
-      ['피트 실수에 팬들은 분노할까?', ans(true), `비판 ${r0(se.pit_err.crit)}% · 평소 ${r0(se.pit_err.ref)}%`],
-      ['피트 잘하는 팀이 더 사랑받을까?', ans(false), '팬심은 기대를 따른다']]),
-    source: '출처: analysis/findings.md 종합 결론 · f1_hypothesis_tests.csv · f1_correlations.csv' });
+  {
+    const qs = [['0.5초 늦으면 순위가 떨어질까?', true, `3바퀴 뒤 ${sg(a.effect05)}계단`],
+      ['피트가 느리면 언더컷이 실패할까?', true, `성공률 ${r0(b.ok)}% → ${r0(b.slow)}%`],
+      ['피트 실수에 팬들은 분노할까?', true, `비판 ${r0(se.pit_err.crit)}% (평소 ${r0(se.pit_err.ref)}%)`],
+      ['피트 잘하는 팀이 더 사랑받을까?', false, '관계없음 → 기대가 더 중요']];
+    slides.push({ kicker: '기획 의도', sector: 0, title: '빠른 피트 = 좋은 순위 = <span class="cy">팬의 신뢰</span>?',
+      lede: '정말 그런지, 경기 기록과 팬들의 글을 같은 10개 팀·3시즌으로 맞춰 확인했다',
+      source: '출처: analysis/findings.md 종합 결론 · f1_hypothesis_tests.csv · f1_correlations.csv',
+      body: `
+    <div class="body split" style="grid-template-columns:40fr 60fr">
+      <div class="col">
+        <div class="hud-card a" style="--d:.25s">
+          <div class="label">왜 궁금했나</div>
+          ${['F1에서 순위는 <b>피트</b>에서 자주 바뀐다', '피트 실수는 <strong>가장 먼저</strong> 욕을 먹는다', '그런데 피트 잘하는 팀이 <b>사랑받는 팀</b>일까?']
+            .map((t, i) => `<p class="txt" style="margin-top:${i ? 18 : 22}px;font-size:30px"><span class="mono" style="color:var(--f1-red);font-weight:700;margin-right:12px">0${i + 1}</span>${t}</p>`).join('')}
+        </div>
+        <div class="hud-card a" style="--d:.45s;--line:var(--f1-purple)">
+          <div class="label">핵심 메시지</div>
+          <p class="txt" style="margin-top:16px;font-size:30px"><b>0.5초</b>가 순위를 바꾼다</p>
+          <p class="txt" style="margin-top:8px;font-size:30px">팬심은 성적이 아니라 <b>기대</b>를 따른다</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hud-card a" style="--d:.35s;--line:var(--f1-cyan)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="label">결과 한눈에</span><span class="txt sm">4개 질문 중 <b style="font-size:30px">3개</b>가 "그렇다"</span></div>
+          ${qs.map(([q, ok, t], i) => `<div class="a" style="--d:${0.5 + i * 0.1}s;display:grid;grid-template-columns:1fr auto auto;gap:18px;align-items:center;margin-top:22px;padding-top:24px;border-top:1px solid var(--f1-surface-border)">
+            <div style="font:700 30px/1.25 var(--body);color:var(--f1-text-primary)">${q}</div><div class="mono" style="font-size:22px;color:var(--f1-text-secondary)">${t}</div>
+            <span class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'YES' : 'NO'}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>` });
+  }
 
   // ── 03 문제
   const cmp = D.compounds, cmpTot = Object.values(cmp).reduce((x, y) => x + y, 0);
-  const cmpRow = [['SOFT', '소프트', P.red], ['MEDIUM', '미디엄', '#FFD000'], ['HARD', '하드', '#D1D5DB'], ['INTERMEDIATE', '인터', '#43B02A'], ['WET', '웨트', '#0067AD']];
+  const cmpRow = [['S', 'tyre-soft', 'SOFT', '소프트', P.red], ['M', 'tyre-medium', 'MEDIUM', '미디엄', '#FFD000'], ['H', 'tyre-hard', 'HARD', '하드', '#D1D5DB'], ['I', '', 'INTERMEDIATE', '인터', '#43B02A'], ['W', '', 'WET', '웨트', '#0067AD']];
   const sr = D.teams.map((t) => t.stops_race);
-  ED({ eyebrow: '문제', hl: '순위는<br><span class="cy">피트</span>에서 갈린다',
-    ctx: '추월이 어려운 F1에서 순위는 피트에서 자주 바뀐다. 그 몇 초가 승부와 팬심을 어떻게 바꾸는지 물었다.',
-    right: `${rows([
-      ['피트레인을 지나는 시간', `${count(M.pit_lane_median, 1)}<span class="u">초</span>`, '이 안에서 0.5초가 승부를 가른다'],
-      ['드라이버 1명의 피트 횟수', `${nf(Math.min(...sr), 1)}~${nf(Math.max(...sr), 1)}<span class="u">번 / 레이스</span>`]])}
-      <div class="a" style="--d:.5s;margin-top:44px">
-        <div class="mini">어떤 타이어로 달렸나 · ${nf(cmpTot)}구간</div>
-        <div class="grow" style="display:flex;height:14px;margin:18px 0 16px">${cmpRow.map(([k, , c]) => `<div style="width:${cmp[k] / cmpTot * 100}%;background:${c}" title="${k}"></div>`).join('')}</div>
-        <div style="display:flex;gap:30px;flex-wrap:wrap;font:500 22px/1 var(--body);color:var(--f1-text-primary)">${cmpRow.map(([k, ko, c]) =>
-          `<span style="display:inline-flex;align-items:center;gap:10px"><i style="width:12px;height:12px;border-radius:50%;background:${c};${k === 'HARD' ? 'outline:1px solid #9CA3AF' : ''}"></i>${ko} <b class="mono">${r0(cmp[k] / cmpTot * 100)}%</b></span>`).join('')}</div>
-      </div>`,
-    source: '출처: f1_strategy_stats.csv · akashrane2609 스틴트 데이터 · 피트레인 시간은 중앙값(정지 시간 아님)' });
+  S('문제', '순위는 <span class="cy">피트</span>에서 갈린다', `
+    <div class="body split" style="grid-template-columns:42fr 58fr">
+      <div class="col">
+        <div class="hud-card a" style="--d:.25s;--line:var(--f1-red)">
+          <div class="label">피트레인을 지나는 시간</div>
+          <div class="big" style="margin-top:12px">${count(M.pit_lane_median, 1)}<span class="unit">초</span></div>
+          <p class="txt sm" style="margin-top:8px">이 안에서 0.5초가 승부를 가른다</p>
+        </div>
+        <div class="hud-card a" style="--d:.4s">
+          <div class="label">드라이버 1명당 피트 횟수</div>
+          <div class="mid" style="margin-top:12px">${nf(Math.min(...sr), 1)}~${nf(Math.max(...sr), 1)}<span class="unit">번 / 레이스</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hud-card a" style="--d:.45s">
+          <div class="label">어떤 타이어로 달렸나 (${nf(cmpTot)}구간)</div>
+          <div style="display:flex;height:46px;margin:20px 0 16px;border-radius:6px;overflow:hidden" class="grow">
+            ${cmpRow.map(([, , k, , c]) => `<div style="width:${cmp[k] / cmpTot * 100}%;background:${c}" title="${k} ${cmp[k]}"></div>`).join('')}
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap">
+            ${cmpRow.map(([bd, cl, k, ko, c]) => `<span style="display:inline-flex;gap:10px;align-items:center;font:600 21px/1 var(--body);color:var(--f1-text-primary)"><span class="tyre-badge ${cl}" style="${cl ? '' : `border-color:${c};color:${c}`}">${bd}</span>${ko} <span class="mono" style="color:var(--f1-text-secondary)">${r0(cmp[k] / cmpTot * 100)}%</span></span>`).join('')}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          ${[['질문 1', '몇 초 늦으면<br>순위가 떨어질까?', 'var(--f1-red)'], ['질문 2', '팬들은 그 몇 초에<br>반응할까?', 'var(--f1-cyan)']]
+            .map(([k, q, c], i) => `<div class="hud-card a" style="--d:${0.6 + i * 0.12}s;--line:${c};padding:26px 28px"><div class="label">${k}</div><p style="margin:12px 0 0;font:700 32px/1.3 var(--body);color:var(--f1-text-primary)">${q}</p></div>`).join('')}
+        </div>
+      </div>
+    </div>`, '출처: f1_strategy_stats.csv · akashrane2609 스틴트 데이터 · 피트레인 시간은 중앙값(정지 시간 아님)', { sector: 0, lede: '드라이버 1명이 레이스마다 약 2번 피트에 들어온다' });
 
-  // ── 04 0.5초 (H1a)
-  ED({ eyebrow: '① 피트 → 순위', hl: '0.5초가<br>가르는 승패',
-    ctx: `피트스톱이 0.5초만 늦어져도 3바퀴 뒤 평균 0.65계단 뒤처진다. 3초 이상 늦으면 1계단이다.`,
-    left: `<div class="bignum a" style="--d:.35s">${count(a.effect05, 2)}<span class="u">계단</span></div>`,
-    right: `<div class="mini a" style="--d:.25s">늦어진 정도별 · 3바퀴 뒤 평균 순위 변화</div><div class="chart-box a" style="--d:.3s;margin-top:16px"><canvas id="c-h1a" width="940" height="560"></canvas></div>`,
-    source: `출처: f1_pitstops_clean.csv (피트스톱 ${nf(M.stops)}건) · 같은 레이스 평균 대비 · Mann-Whitney ${pv(a.p05)}` });
+  // ── 04 발견 1: 0.5초 (H1a)
+  S('발견 1', '피트스톱이 <em>0.5초</em>만 늦어져도', `
+    <div class="body split">
+      <div class="col">
+        <div class="hud-card a" style="--d:.2s;--line:var(--f1-red)">
+          <div class="label">3바퀴 뒤 순위</div>
+          <div class="big red" style="margin-top:12px">${count(a.effect05, 2)}<span class="unit">계단</span></div>
+          <p class="txt sm" style="margin-top:8px">0.5초 이상 늦은 피트스톱의 평균 손해</p>
+        </div>
+        <div class="hud-card a" style="--d:.35s">
+          <div class="label">3초 이상 늦으면</div>
+          <div class="mid hot" style="margin-top:12px">${sg(a.effect3, 1)}<span class="unit">계단</span></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hud-card a" style="--d:.3s;height:100%">
+          <div class="label">늦어진 정도별 · 3바퀴 뒤 순위 변화</div>
+          <div class="chart-box" style="margin-top:18px"><canvas id="c-h1a" width="1020" height="520"></canvas></div>
+        </div>
+      </div>
+    </div>`, `출처: f1_pitstops_clean.csv (피트스톱 ${nf(M.stops)}건) · 같은 레이스 평균 대비 · Mann-Whitney ${pv(a.p05)}`, { sector: 1, lede: `${nf(M.stops)}번의 피트스톱을 비교하니, 늦은 피트는 3바퀴 뒤 확실히 뒤처져 있었다` });
   charts[slides.length - 1] = [() => new Chart(el('c-h1a'), {
     type: 'bar',
     data: { labels: [['정상', `${nf(a.buckets[0].n)}번`], ['0.5~3초 늦음', `${nf(a.buckets[1].n)}번`], ['3초 이상 늦음', `${nf(a.buckets[2].n)}번`]],
-      datasets: [{ data: a.buckets.map((x) => x.mean), backgroundColor: ['#D1D5DB', P.amber, P.red], borderRadius: 2, barPercentage: .56 }] },
-    options: base({ id: 'c-h1a', y: { title: '', min: -4, max: 0 }, valueLabel: (v) => sg(v, 1) })
+      datasets: [{ data: a.buckets.map((x) => x.mean), backgroundColor: [P.tealFill, P.amber, P.red], borderRadius: 6, barPercentage: .62 }] },
+    options: base({ id: 'c-h1a', y: { title: '평균 순위 변화 (계단)', min: -4, max: 0 }, valueLabel: (v) => sg(v, 1) })
   })];
 
-  // ── 05 언더컷 (H1b)
+  // ── 05 발견 2: 언더컷 (H1b)
   const defTop = [...D.teams].filter((t) => t.uc_def >= 10).sort((x, y) => y.uc_def_rate - x.uc_def_rate);
-  ED({ eyebrow: '① 피트 → 순위', hl: `느린 피트는<br>추월 작전을<br><em>반토막</em> 낸다`,
-    ctx: `앞차보다 먼저 들어가 새 타이어로 추월하는 '언더컷'. 내 피트가 0.5초만 느려도 성공률이 <b>${r0(b.ok)}% → ${r0(b.slow)}%</b>로 떨어진다.`,
-    right: `<div class="mini a" style="--d:.25s">언더컷 성공률 · ${M.undercuts}번의 시도</div><div class="chart-box a" style="--d:.3s;margin-top:16px"><canvas id="c-h1b" width="940" height="340"></canvas></div>
-      <div style="margin-top:26px">${rows(defTop.slice(0, 2).concat(defTop.slice(-1)).map((t) => [`${tn(t.team)} <span class="dim">앞에서 막아낸 비율</span>`, `${r0(t.uc_def_rate)}%`]), .5)}</div>`,
-    source: `출처: f1_undercut_events.csv · Fisher exact ${pv(b.p)} · 막아낸 비율은 10번 이상 시도받은 팀` });
+  S('발견 2', `언더컷 성공률 반토막 <span class="mono" style="font-size:.8em">(<span class="cy">${r0(b.ok)}%</span> → <em>${r0(b.slow)}%</em>)</span>`, `
+    <div class="body split rev">
+      <div class="col">
+        <div class="hud-card a" style="--d:.25s;height:100%">
+          <div class="label">언더컷 성공률 · ${M.undercuts}번의 시도</div>
+          <div class="chart-box" style="margin-top:18px"><canvas id="c-h1b" width="1020" height="520"></canvas></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hud-card a" style="--d:.35s;--line:var(--f1-cyan)">
+          <div class="label">언더컷이란?</div>
+          <p class="txt" style="margin-top:12px;font-size:27px">앞차보다 <b>먼저 피트</b>에 들어가<br>새 타이어로 추월하는 작전</p>
+        </div>
+        <div class="hud-card a" style="--d:.5s">
+          <div class="label">앞에서 잘 막는 팀</div>
+          ${defTop.slice(0, 2).concat(defTop.slice(-1)).map((t, i) => `<div style="display:grid;grid-template-columns:190px 1fr 80px;gap:14px;align-items:center;margin-top:18px">
+            ${tag(t.team)}<div class="gauge"><i class="grow" style="--d:${0.7 + i * 0.12}s;width:${t.uc_def_rate}%;--gc:${teamColor(t.team)}"></i></div>
+            <span class="mono" style="text-align:right;font-size:26px;font-weight:700">${r0(t.uc_def_rate)}%</span></div>`).join('')}
+        </div>
+      </div>
+    </div>`, `출처: f1_undercut_events.csv · Fisher exact ${pv(b.p)} · 막기 비율은 10번 이상 시도받은 팀`, { sector: 1, lede: '내 피트가 0.5초만 느려도, 추월 작전 성공률이 절반 아래로' });
   charts[slides.length - 1] = [() => new Chart(el('c-h1b'), {
     type: 'bar',
     data: { labels: [['내 피트가 0.5초 이상 느릴 때', `${b.n_slow}번`], ['그렇지 않을 때', `${b.n_ok}번`]],
-      datasets: [{ data: [b.slow, b.ok], backgroundColor: [P.red, '#D1D5DB'], borderRadius: 2, barPercentage: .46 }] },
-    options: base({ id: 'c-h1b', y: { title: '', min: 0, max: 70 }, valueLabel: (v) => r0(v) + '%', refLine: { value: b.overall, label: `전체 평균 ${r0(b.overall)}%` } })
+      datasets: [{ data: [b.slow, b.ok], backgroundColor: [P.red, P.tealFill], borderRadius: 6, barPercentage: .5 }] },
+    options: base({ id: 'c-h1b', y: { title: '성공률 (%)', min: 0, max: 70 }, valueLabel: (v) => r0(v) + '%', refLine: { value: b.overall, label: `전체 평균 ${r0(b.overall)}%` } })
   })];
 
-  // ── 06 팀 비교
-  ED({ eyebrow: '① 피트 → 순위', hl: `가장 빠른 팀과<br>가장 느린 팀,<br><em>${nf(gap, 1)}초</em> 차이`,
-    ctx: `레드불은 같은 레이스 평균보다 ${nf(rb.delay, 2)}초, 하스는 ${nf(hs.delay, 2)}초 늦었다. 맥라렌은 2023년 흔들렸다가(${r0(ml.err_by_year['2023'])}%) 2024년 회복했다(${r0(ml.err_by_year['2024'])}%).`,
-    right: `<div class="a" style="--d:.25s;display:flex;justify-content:space-between;align-items:baseline;gap:20px">
-        <span class="mini" id="bench-label">평균 지연 (초)</span>
-        <div class="seg" role="group" aria-label="지표 선택" data-noclick>
-          <button data-m="delay" aria-pressed="true">평균 지연</button><button data-m="slow" aria-pressed="false">0.5초+</button>
-          <button data-m="err" aria-pressed="false">3초+</button><button data-m="uc_rate" aria-pressed="false">언더컷 성공</button>
-        </div></div>
-      <div class="chart-box a" style="--d:.3s;margin-top:18px" data-noclick><canvas id="c-bench" width="940" height="580"></canvas></div>`,
-    source: '출처: f1_strategy_stats.csv (2022–2024, 팀당 214~251번) · 오른쪽 위 메뉴로 지표 전환' });
+  // ── 06 팀 비교 (인터랙티브)
+  S('팀 비교', `가장 빠른 팀 vs 가장 느린 팀: <em>${nf(gap, 1)}초</em> 차이`, `
+    <div class="body split">
+      <div class="col">
+        <div class="hud-card a" style="--d:.2s;--line:${teamColor('Red Bull')}">
+          <div style="display:flex;justify-content:space-between;align-items:center">${tag('Red Bull')}<span class="delta-badge best">가장 빠름</span></div>
+          <div class="mid cool" style="margin-top:14px">${sg(rb.delay)}<span class="unit">초</span></div>
+        </div>
+        <div class="hud-card a" style="--d:.32s;--line:${teamColor('Haas')}">
+          <div style="display:flex;justify-content:space-between;align-items:center">${tag('Haas')}<span class="delta-badge slow">가장 느림</span></div>
+          <div class="mid hot" style="margin-top:14px">${sg(hs.delay)}<span class="unit">초</span></div>
+          <p class="txt sm" style="margin-top:6px">5번 중 1번은 3초 이상 지연 (${r0(hs.err)}%)</p>
+        </div>
+        <div class="hud-card a" style="--d:.44s;--line:${teamColor('McLaren')}">
+          <div class="label">${tag('McLaren')} 3초+ 지연 비율</div>
+          <div style="display:flex;gap:16px;margin-top:14px;align-items:center;font:700 34px/1 var(--mono)">
+            <span>${r0(ml.err_by_year['2022'])}%</span><span style="color:var(--f1-text-secondary)">→</span><span class="hot">${r0(ml.err_by_year['2023'])}%</span><span style="color:var(--f1-text-secondary)">→</span><span class="cool">${r0(ml.err_by_year['2024'])}%</span>
+          </div>
+          <p class="txt sm" style="margin-top:8px">2023년 흔들렸다가 2024년 회복</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hud-card a" style="--d:.3s;height:100%">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:16px">
+            <span class="label" id="bench-label">평균 지연 (초)</span>
+            <div class="seg" role="group" aria-label="지표 선택" data-noclick>
+              <button data-m="delay" aria-pressed="true">평균 지연</button><button data-m="slow" aria-pressed="false">0.5초+ 지연</button>
+              <button data-m="err" aria-pressed="false">3초+ 지연</button><button data-m="uc_rate" aria-pressed="false">언더컷 성공</button>
+            </div>
+          </div>
+          <div class="chart-box" style="margin-top:16px" data-noclick><canvas id="c-bench" width="1020" height="530"></canvas></div>
+        </div>
+      </div>
+    </div>`, '출처: f1_strategy_stats.csv (2022–2024, 팀당 214~251번) · 오른쪽 위 버튼으로 지표 전환', { sector: 1, lede: '같은 레이스 평균보다 얼마나 늦었나 — 팀별 차이는 3시즌 내내 거의 그대로' });
   const BENCH = { delay: ['평균 지연 (초)', (v) => sg(v, 2) + '초'], slow: ['0.5초 이상 늦은 비율 (%)', (v) => r0(v) + '%'],
     err: ['3초 이상 늦은 비율 (%)', (v) => r0(v) + '%'], uc_rate: ['언더컷 성공률 (%) · 시도 횟수', (v) => r0(v) + '%'] };
   charts[slides.length - 1] = [() => {
     const ch = new Chart(el('c-bench'), {
       type: 'bar',
-      data: (() => { const o = [...D.teams].sort((x, y) => x.delay - y.delay); return { labels: o.map((t) => t.team), datasets: [{ data: o.map((t) => t.delay), backgroundColor: o.map((t) => teamColor(t.team)), borderRadius: 2, barPercentage: .62 }] }; })(),
+      data: (() => { const o = [...D.teams].sort((x, y) => x.delay - y.delay); return { labels: o.map((t) => t.team), datasets: [{ data: o.map((t) => t.delay), backgroundColor: o.map((t) => teamColor(t.team)), borderColor: P.line, borderWidth: 1, borderRadius: 6, barPercentage: .72 }] }; })(),
       options: base({ id: 'c-bench', horizontal: true, valueLabel: BENCH.delay[1] })
     });
-    const seg = el('c-bench').closest('.ed-right').querySelectorAll('.seg button');
+    const seg = el('c-bench').closest('.hud-card').querySelectorAll('.seg button');
     seg.forEach((btn) => btn.onclick = (e) => {
       e.stopPropagation();
       const m = btn.dataset.m, order = [...D.teams].sort((x, y) => m === 'uc_rate' ? y[m] - x[m] : x[m] - y[m]);
@@ -170,85 +260,157 @@
     return ch;
   }];
 
-  // ── 07 팬 반응 (H2′)
-  ED({ eyebrow: '② 실수 → 여론', hl: `피트 실수 얘기가<br>나오면,<br>비판이 <em>${ratio}배</em>`,
-    ctx: `팬·미디어 글 ${M.strategy_sentences}개 전략 문장의 감정을 읽었다. 작전 얘기는 차분하지만, 눈에 보이는 실수에는 바로 분노한다.`,
-    left: `<div class="bignum a" style="--d:.35s">${count(se.pit_err.crit, 0, '', '%')}<span class="u">비판</span></div>`,
-    right: `${rows([
-      ['피트 실수를 말한 문장', `${r0(se.pit_err.crit)}%`, '이 중 비판의 비율'],
-      ['다른 전략 이야기', `${r0(se.pit_err.ref)}%`],
-      ['언더컷 같은 작전 이야기', `${r0(se.undercut.crit)}%`]])}
-      <blockquote class="q a" style="--d:.6s">“한 번은 괜찮아도, 두 번은 심하고,<br>세 번은 용납 못 한다.”<cite>RaceFans 독자 댓글 · 2024 자우버 피트 실수</cite></blockquote>
-      <blockquote class="q a" style="--d:.72s">“그리고 피트스톱은 완전히 재앙이었다.”<cite>막스 페르스타펜 · 2024 오스트리아 GP</cite></blockquote>`,
-    source: `출처: f1_text_sentences.csv (Firecrawl ${M.docs}건 · ${nf(M.sentences)}문장) · 규칙 기반 감정 분류 · Fisher ${pv(se.pit_err.p)}` });
+  // ── 07 발견 3: 팬 반응 (H2′)
+  const ratio = se.pit_err.crit / se.pit_err.ref;
+  S('발견 3', `피트 실수 얘기가 나오면, 비판이 <em>${r0(ratio)}배</em>`, `
+    <div class="body split" style="grid-template-columns:36fr 24fr 40fr">
+      <div class="col">
+        <div class="hud-card a" style="--d:.2s;--line:var(--f1-red)">
+          <div class="label">피트 실수를 말한 문장 중 비판</div>
+          <div class="big red" style="margin-top:12px">${count(se.pit_err.crit, 0, '', '%')}</div>
+        </div>
+        <div class="hud-card a" style="--d:.32s">
+          <div class="label">다른 전략 이야기</div>
+          <div class="mid" style="margin-top:12px;color:var(--f1-text-secondary)">${r0(se.pit_err.ref)}%</div>
+          <p class="txt sm" style="margin-top:6px">언더컷 같은 작전 얘기는 차분 (${r0(se.undercut.crit)}%)</p>
+        </div>
+      </div>
+      <div class="hud-card a" style="--d:.3s">
+        <div class="label">전략 문장 ${M.strategy_sentences}개의 감정</div>
+        <div class="chart-box" style="margin-top:18px"><canvas id="c-sent" width="300" height="300"></canvas></div>
+        <div style="display:grid;gap:12px;margin-top:22px;font:600 21px/1 var(--body);color:var(--f1-text-primary)">
+          ${[['중립', '#9CA3AF'], ['긍정', P.tealFill], ['비판', P.red], ['불안', P.purple]].map(([k, c]) => `<span style="display:flex;justify-content:space-between"><span style="display:flex;gap:10px;align-items:center"><i style="width:14px;height:14px;border-radius:3px;background:${c}"></i>${k}</span><span class="mono">${r0(dist[k] / M.strategy_sentences * 100)}%</span></span>`).join('')}
+        </div>
+      </div>
+      <div class="col">
+        ${[['한 번은 괜찮아도, 두 번은 심하고, 세 번은 용납 못 한다.', 'One race is acceptable, while two is already a stretch, & three definitely unacceptable…', 'RaceFans 독자 댓글 · 2024 자우버 피트 실수'],
+           ['그리고 피트스톱은 완전히 재앙이었다.', '…and then came the pit stops which were an absolute disaster.', '막스 페르스타펜 · 2024 오스트리아 GP']]
+          .map(([ko, en, c], i) => `<div class="hud-card a" style="--d:${0.45 + i * 0.12}s;--line:var(--f1-red)"><p class="quote" style="font-size:26px;font-weight:700">${ko}</p><p class="txt sm" style="margin-top:10px;font-style:italic">${en}</p><p class="txt sm" style="margin-top:6px;font-size:19px">— ${c}</p></div>`).join('')}
+      </div>
+    </div>`, `출처: f1_text_sentences.csv (Firecrawl ${M.docs}건 · ${nf(M.sentences)}문장) · 규칙 기반 감정 분류 · Fisher ${pv(se.pit_err.p)}`, { sector: 2, lede: '팬·미디어 글을 문장 단위로 읽어 감정을 분류했다' });
+  charts[slides.length - 1] = [() => new Chart(el('c-sent'), {
+    type: 'doughnut',
+    data: { labels: ['중립', '긍정', '비판', '불안'], datasets: [{ data: ['중립', '긍정', '비판', '불안'].map((k) => dist[k]), backgroundColor: ['#D1D5DB', P.tealFill, P.red, P.purple], borderColor: P.card, borderWidth: 3 }] },
+    options: { ...chartCommon(), cutout: '62%', plugins: { legend: { display: false }, tooltip: tooltip() } }
+  })];
 
   // ── 08 반전 (H2)
-  ED({ eyebrow: '② 실수 → 여론', hl: `팬들은 성적이 아닌<br><em>'기대'</em>에<br>분노한다`,
-    ctx: '피트 실수가 가장 많은 하스는 칭찬받고, 피트가 상위권인 페라리는 비판받는다. 팀 단위로 보면 피트 실력과 팬 신뢰는 관계가 없다.',
-    right: `<div class="mini a" style="--d:.25s">3초 이상 늦은 피트 비율 × 팬 신뢰 점수 · 원 크기 = 글의 양</div>
-      <div class="chart-box a" style="--d:.3s;margin-top:12px" data-noclick><canvas id="c-twist" width="940" height="390"></canvas></div>
-      <div style="margin-top:20px">${rows([
-        [`${tn('Haas')} 피트 실수 1위`, `<span class="ans yes">칭찬</span>`, '"하스는 작전을 정말 영리하게 썼다" — 알본'],
-        [`${tn('Ferrari')} 피트 상위권`, `<span class="ans no">비판 ${r0(fe.crit)}%</span>`, '기대가 클수록 실망도 크다']], .5)}</div>`,
-    source: `출처: f1_team_crossmap.csv · Spearman ρ = ${sg(c1.rho)} (${pv(c1.p)}) · 신뢰 점수 = (긍정 − 비판) ÷ 전략 문장 × 100 · * 글이 적은 팀` });
+  S('반전', `팬들은 '절대 성적'보다 <em>'기대 대비 실망'</em>에 분노한다`, `
+    <div class="body split rev">
+      <div class="col">
+        <div class="hud-card a" style="--d:.25s;height:100%">
+          <div class="label">피트 실수가 많은 팀일수록 신뢰가 낮을까? (원 크기 = 글의 양)</div>
+          <div class="chart-box" style="margin-top:12px" data-noclick><canvas id="c-twist" width="1020" height="540"></canvas></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hud-card a" style="--d:.35s;--line:var(--f1-yellow)">
+          <div class="label">결과</div>
+          <p style="margin:10px 0 0;font:700 34px/1.3 var(--body);color:var(--f1-text-primary)">관계 <span style="color:var(--f1-red)">없음</span></p>
+          <p class="txt sm" style="margin-top:6px">피트 실력과 팬 신뢰는 따로 움직인다</p>
+        </div>
+        <div class="hud-card a" style="--d:.5s;--line:${teamColor('Haas')}">
+          ${tag('Haas')}
+          <p class="txt" style="margin-top:10px;font-size:26px">피트 실수 <strong>1위</strong>, 그래도 <b>칭찬</b></p>
+          <p class="txt sm" style="margin-top:6px">"하스는 작전을 정말 영리하게 썼다" — 알본</p>
+        </div>
+        <div class="hud-card a" style="--d:.65s;--line:${teamColor('Ferrari')}">
+          ${tag('Ferrari')}
+          <p class="txt" style="margin-top:10px;font-size:26px">피트는 상위권, 그런데 <strong>비판 많음</strong></p>
+          <p class="txt sm" style="margin-top:6px">기대가 클수록 실망도 크다</p>
+        </div>
+      </div>
+    </div>`, `출처: f1_team_crossmap.csv · Spearman ρ = ${sg(c1.rho)} (${pv(c1.p)}) · 신뢰 점수 = (긍정 − 비판) ÷ 전략 문장 × 100 · * 글이 적은 팀`, { sector: 2, lede: '피트를 못하는 팀이 오히려 덜 욕먹는다' });
   charts[slides.length - 1] = [() => new Chart(el('c-twist'), {
     type: 'bubble',
-    data: { datasets: D.teams.map((t) => ({ label: t.team, data: [{ x: t.err, y: t.trust, r: Math.max(7, Math.sqrt(t.sent_n) * 2.3) }],
-      backgroundColor: teamColor(t.team) + 'D9', borderColor: P.card, borderWidth: 2 })) },
+    data: { datasets: D.teams.map((t) => ({ label: t.team, data: [{ x: t.err, y: t.trust, r: Math.max(8, Math.sqrt(t.sent_n) * 2.6) }],
+      backgroundColor: teamColor(t.team) + 'CC', borderColor: P.ink2, borderWidth: 1 })) },
     options: { ...chartCommon(), layout: { padding: { right: 30, top: 10 } },
       plugins: { legend: { display: false }, tooltip: tooltip((ctx) => { const t = T[ctx.dataset.label]; return `${t.team}: 3초+ 지연 ${r0(t.err)}% · 신뢰 ${sg(t.trust, 1)}${t.sent_n < 20 ? ' (글 적음)' : ''}`; }) },
-      scales: { x: axis('', 4, 21), y: axis('', -20, 45) } },
+      scales: { x: axis('3초 이상 늦은 피트 비율 (%)', 4, 21), y: axis('팬 신뢰 점수', -20, 45) } },
     plugins: [bubbleLabels]
   })];
 
   // ── 09 사례: 자우버
   const maxDelay = Math.max(...sb.stops.map((s) => s.delta));
-  ED({ eyebrow: '② 실수 → 여론', hl: '바퀴 너트 하나가<br>만든 최악의 평판',
-    ctx: `2024년 자우버는 시즌 첫 3경기에서 피트가 무너졌다. 바퀴 너트가 안 풀려 24초, 29초씩 멈춰 섰고, 팬 신뢰 점수는 10개 팀 중 꼴찌가 됐다.`,
-    left: `<div class="bignum a" style="--d:.35s">${count(sa.trust, 1)}<span class="u">신뢰 점수</span></div>`,
-    right: `<div class="mini a" style="--d:.25s">시즌 첫 3경기 피트스톱 ${sb.early.n}번 · 평균보다 늦어진 시간</div>
-      <div class="stops">${sb.stops.map((s, i) => `<div class="stop a" style="--d:${0.3 + i * 0.05}s">
-        <span class="k"><span class="dim mono">R${s.round}</span> ${s.gp.replace('Saudi Arabian', 'Saudi')} · ${s.driver}</span>
-        <span class="bar"><i class="grow" style="--d:${0.45 + i * 0.06}s;width:${Math.max(0.8, s.delta / maxDelay * 100)}%;background:${s.delta >= 3 ? P.red : s.delta >= 0.5 ? P.amber : '#D1D5DB'}"></i></span>
-        <span class="v${s.delta >= 3 ? ' hot' : ''}">${sg(s.delta, 1)}초</span></div>`).join('')}</div>
-      <p class="ctx a" style="--d:.9s;margin-top:28px;font-size:24px">문제 기간 평균 <b class="mono" style="color:var(--f1-red)">${sg(sb.early.delay, 1)}초</b> → 해결 후 <b class="mono">${sg(sb.late.delay, 1)}초</b></p>`,
-    source: '출처: f1_pitstops_clean.csv (Sauber 2024 1~3라운드 vs 이후) · f1_sentiment_analysis.csv · The Race · Motorsport.com' });
+  S('사례', `2024 <span style="color:#16A34A">자우버</span>: 바퀴 너트 하나가 만든 최악의 평판`, `
+    <div class="body split rev">
+      <div class="col">
+        <div class="hud-card a" style="--d:.2s;--line:var(--team-sauber);height:100%">
+          <div class="label">시즌 첫 3경기 피트스톱 ${sb.early.n}번 · 평균보다 늦어진 시간</div>
+          <div style="display:grid;gap:14px;margin-top:24px">
+            ${sb.stops.map((s, i) => `<div style="display:grid;grid-template-columns:270px 1fr 120px;gap:16px;align-items:center;font:500 21px/1 var(--body);color:var(--f1-text-primary)">
+              <span style="white-space:nowrap"><span class="mono" style="color:var(--f1-text-secondary)">R${s.round}</span> ${s.gp.replace('Saudi Arabian', 'Saudi')} · ${s.driver}</span>
+              <div class="gauge"><i class="grow" style="--d:${0.35 + i * 0.07}s;width:${Math.max(1.5, s.delta / maxDelay * 100)}%;--gc:${s.delta >= 3 ? P.red : s.delta >= 0.5 ? P.amber : P.tealFill}"></i></div>
+              <span class="delta-badge ${s.delta >= 3 ? 'slow' : s.delta >= 0.5 ? 'warn' : 'fast'}" style="justify-self:end">${sg(s.delta, 1)}초</span></div>`).join('')}
+          </div>
+          <p class="txt sm" style="margin-top:22px">+24초 · +29초 — 바퀴 너트가 안 풀려 그대로 멈춰 섰다</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="hud-card a" style="--d:.4s;--line:var(--f1-red)">
+          <div class="label">팬 신뢰 점수</div>
+          <div class="big red" style="margin-top:10px;font-size:112px">${count(sa.trust, 1)}</div>
+          <p class="txt sm" style="margin-top:6px">10개 팀 중 <strong>꼴찌</strong></p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="hud-card a" style="--d:.55s;--line:var(--f1-red);padding:20px 22px"><div class="label">문제 기간</div><div class="mid hot" style="margin-top:10px;font-size:46px">${sg(sb.early.delay, 1)}초</div></div>
+          <div class="hud-card a" style="--d:.65s;padding:20px 22px"><div class="label">해결 후</div><div class="mid cool" style="margin-top:10px;font-size:46px">${sg(sb.late.delay, 1)}초</div></div>
+        </div>
+        <div class="hud-card a" style="--d:.75s;--line:var(--team-sauber)"><p class="quote" style="font-size:24px;font-weight:700">드라이버들이 이제 "Box Box Box"(피트 들어와) 소리만 들어도 겁낸다.</p><p class="txt sm" style="margin-top:8px;font-size:19px">— RaceFans 독자 댓글 · 2024-03</p></div>
+      </div>
+    </div>`, '출처: f1_pitstops_clean.csv (Sauber 2024 1~3라운드 vs 이후) · f1_sentiment_analysis.csv · The Race · Motorsport.com', { sector: 2, lede: '시즌 초 3경기 피트가 무너지자, 팬 신뢰도 꼴찌로' });
 
   // ── 10 한눈에
   const ext = (k, f) => { const v = D.teams.map((t) => t[k]); return f === 'min' ? Math.min(...v) : Math.max(...v); };
   const cls = (k, v, good) => v === ext(k, good) ? 'best' : v === ext(k, good === 'min' ? 'max' : 'min') ? 'hot' : '';
-  ED({ eyebrow: '③ 정리', hl: '실력은 <span class="cy">순위</span>를,<br>기대는 <em>여론</em>을<br>움직인다',
-    ctx: '네 가지 질문 중 세 가지는 "그렇다". 피트 실력과 팬 신뢰만은 따로 움직였다.',
-    right: `<table class="tower a" style="--d:.3s">
-        <thead><tr><th></th><th>팀</th><th>평균 지연</th><th>3초+ 지연</th><th>언더컷 성공</th><th>팬 신뢰</th></tr></thead>
-        <tbody>${[...D.teams].sort((x, y) => x.finish - y.finish).map((t, i) => `<tr>
-          <td class="dim">${i + 1}</td><td class="tn">${tn(t.team)}</td>
-          <td class="${cls('delay', t.delay, 'min')}">${sg(t.delay)}초</td><td class="${cls('err', t.err, 'min')}">${r0(t.err)}%</td>
-          <td class="${cls('uc_rate', t.uc_rate, 'max')}">${r0(t.uc_rate)}%</td>
-          <td class="${cls('trust', t.trust, 'max')}">${sg(t.trust, 0)}${t.sent_n < 20 ? '*' : ''}</td></tr>`).join('')}</tbody>
-      </table>`,
-    source: '출처: f1_team_crossmap.csv · 순서 = 2022–24 평균 완주 순위 · 굵은 보라 = 최고, 빨강 = 최저 · * 글이 적은 팀(Williams, Alpine)' });
+  const yes = [['0.5초 늦으면 순위 하락', true], ['느린 피트 = 언더컷 실패', true], ['실수 언급 = 비판', true], ['피트 실력 = 팬 신뢰', false]];
+  S('한눈에', '피트 실력은 <span class="cy">순위</span>를, 기대는 <em>여론</em>을 움직인다', `
+    <div class="body split rev" style="grid-template-columns:68fr 32fr">
+      <div class="a" style="--d:.2s">
+        <table class="tower">
+          <thead><tr><th>순위</th><th>팀</th><th>평균 지연</th><th>3초+ 지연</th><th>언더컷 성공</th><th>팬 신뢰</th></tr></thead>
+          <tbody>${[...D.teams].sort((x, y) => x.finish - y.finish).map((t, i) => `<tr class="a" style="--d:${0.25 + i * 0.05}s">
+            <td>${String(i + 1).padStart(2, '0')}</td><td class="tn">${tag(t.team)}</td>
+            <td class="${cls('delay', t.delay, 'min')}">${sg(t.delay)}초</td><td class="${cls('err', t.err, 'min')}">${r0(t.err)}%</td>
+            <td class="${cls('uc_rate', t.uc_rate, 'max')}">${r0(t.uc_rate)}%</td>
+            <td class="${cls('trust', t.trust, 'max')}">${sg(t.trust, 0)}${t.sent_n < 20 ? '<sup style="color:#B45309">*</sup>' : ''}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div class="col">
+        ${yes.map(([k, ok], i) => `<div class="hud-card a" style="--d:${0.4 + i * 0.12}s;padding:22px 24px;--line:${ok ? 'var(--f1-cyan)' : 'var(--f1-red)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><span style="font:700 25px/1.3 var(--body);color:var(--f1-text-primary)">${k}</span><span class="verdict ${ok ? 'ok' : 'no'}">${ok ? 'YES' : 'NO'}</span></div></div>`).join('')}
+      </div>
+    </div>`, '출처: f1_team_crossmap.csv · 팀 순위 = 2022–24 평균 완주 순위 · 보라 = 최고, 빨강 = 최저 · * 글이 적은 팀(Williams, Alpine)', { sector: 3, lede: '10개 팀 성적표와 4개 질문의 답' });
 
   // ── 11 주의할 점
-  ED({ eyebrow: '③ 정리', hl: '이 결과를 읽을 때<br>주의할 점',
-    ctx: '더 정확한 결론을 위해, 다음 분석에서는 정확한 정지 시간과 세이프티카 데이터로 다시 확인한다.',
-    right: rows([
-      ['팀이 10개뿐', '', '팀끼리 비교한 결과는 참고용'],
-      ['피트 시간 = 피트레인 통과 시간', '', '바퀴 교체 정지 시간과는 다르다'],
-      ['세이프티카 구간 미구분', '', '그때 들어간 피트도 함께 계산'],
-      ['감정 분류는 자동', '', '사람이 한 문장씩 검수하진 않았다'],
-      ['팀별 글 양이 다름', '', `적은 팀 ${Math.min(...D.teams.map((t) => t.sent_n))}문장 · 많은 팀 ${Math.max(...D.teams.map((t) => t.sent_n))}문장`],
-      ['Reddit 제외', '', '수집 도구가 지원하지 않음']], .25),
-    source: '출처: log/decisions.md · analysis/findings.md 「한계와 다음 단계」' });
+  const lim = [['팀이 10개뿐', '팀끼리 비교한 결과는 참고용'], ['피트 시간 = 피트레인 통과 시간', '바퀴 교체 정지 시간과는 다르다'], ['세이프티카 구간 미구분', '그때 들어간 피트도 함께 계산'],
+    ['감정 분류는 자동', '사람이 한 문장씩 검수하진 않았다'], ['팀별 글 양이 다름', `적은 팀 ${Math.min(...D.teams.map((t) => t.sent_n))}문장 · 많은 팀 ${Math.max(...D.teams.map((t) => t.sent_n))}문장`], ['Reddit 제외', '수집 도구가 지원하지 않음']];
+  S('주의', '이 결과를 읽을 때 <span class="cy">주의할 점</span>', `
+    <div class="body" style="grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr auto">
+      ${lim.map(([k, t], i) => `<div class="hud-card a" style="--d:${0.2 + i * 0.1}s;--line:${i < 3 ? 'var(--f1-red)' : 'var(--f1-yellow)'}"><div style="font:700 32px/1.3 var(--body);color:var(--f1-text-primary)">${k}</div><p class="txt sm" style="margin-top:14px;font-size:26px">${t}</p></div>`).join('')}
+      <div class="hud-card a" style="--d:.9s;grid-column:1 / -1;--line:var(--f1-cyan);display:flex;gap:28px;align-items:center;padding:20px 28px">
+        <span class="label" style="color:var(--f1-cyan)">다음 단계</span>
+        <span class="txt" style="font-size:24px">정확한 정지 시간·세이프티카 데이터로 다시 확인하기</span>
+      </div>
+    </div>`, '출처: log/decisions.md · analysis/findings.md 「한계와 다음 단계」', { sector: 3, lede: '더 정확한 결론을 위해 다음에 보완할 부분' });
 
-  // ── 12 결론
-  ED({ eyebrow: '결론', hl: '0.5초는 순위를,<br>기대는 마음을<br>움직인다',
-    ctx: '질문 받겠습니다. <span class="dim">— Box, box.</span>',
-    right: rows([
-      ['늦은 피트는 순위를 잃는다', `<span class="v-big">0.5초</span>`],
-      ['실수는 바로 비판받는다', `<span class="v-big">${r0(se.pit_err.crit)}%</span>`],
-      ['팬의 신뢰는 기대가 정한다', `<span class="v-big cy">기대</span>`]], .3),
-    source: '재현: scripts/analysis/2026-10-25_f1-*.py → data/processed/f1_*.csv → slides/f1/deck-data.js' });
+  // ── 12 결론 & Q&A
+  slides.push({ raw: `
+    <svg class="a" style="--d:.1s;position:absolute;left:0;top:760px" width="1920" height="160" viewBox="0 0 1920 160" aria-hidden="true">
+      <path class="line-draw" style="--len:2600;--d:.3s" d="M0 100 L600 100 L640 40 L680 140 L720 100 L1920 100" fill="none" stroke="${P.tealFill}" stroke-width="3" opacity=".7"/>
+    </svg>
+    <div class="kicker a" style="--d:0s"><span class="tag">12</span>결론</div>${sectorBar(3)}
+    <div style="position:absolute;left:100px;right:100px;top:170px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px">
+      ${[['0.5초', '늦은 피트는<br>순위를 잃는다', 'var(--f1-red)'], [`${r0(se.pit_err.crit)}%`, '실수는 바로<br>비판받는다', '#B45309'], ['기대', '팬의 신뢰는<br>기대가 정한다', 'var(--f1-cyan)']]
+        .map(([n, h, c], i) => `<div class="hud-card a" style="--d:${0.2 + i * 0.15}s;--line:${c};padding:32px">
+          <div class="mid" style="color:${c};font-size:76px">${n}</div><div style="font:700 36px/1.3 var(--body);margin-top:18px;color:var(--f1-text-primary)">${h}</div></div>`).join('')}
+    </div>
+    <p class="txt a" style="--d:.65s;position:absolute;left:100px;right:100px;top:500px;font-size:32px;line-height:1.5;font-weight:600"><span style="color:var(--f1-red)">▍</span>피트 0.5초는 순위를 바꾸지만, 팬의 마음은 <b>기대</b>가 움직인다.</p>
+    <h2 style="position:absolute;left:100px;top:600px;margin:0;font:700 150px/1 var(--display);letter-spacing:-.02em;color:var(--f1-text-primary)">
+      <span class="mask"><span style="--d:.7s">Q<span style="color:var(--f1-red)">&amp;</span>A</span></span></h2>
+    <p class="txt a" style="--d:.9s;position:absolute;left:560px;top:650px;font-size:30px;color:var(--f1-text-secondary)">Box, box — 질문 받겠습니다.</p>
+    <div class="footer a" style="--d:1s"><span>재현: scripts/analysis/2026-10-25_f1-*.py → data/processed/f1_*.csv → slides/f1/deck-data.js</span><span class="pg"><b>12</b> / ${N}</span></div>` });
 
   // ── 마크업 주입
   const deck = document.getElementById('deck');
@@ -303,7 +465,7 @@
   } };
   const BUBBLE_POS = { Ferrari: 'left', Mercedes: 'bottom', McLaren: 'right', 'Aston Martin': 'bottom', 'Red Bull': 'right' };
   const bubbleLabels = { id: 'bubbleLabels', afterDatasetsDraw(ch) {
-    const { ctx } = ch; ctx.save(); ctx.font = '600 18px "Pretendard"'; ctx.textBaseline = 'middle';
+    const { ctx } = ch; ctx.save(); ctx.font = '700 17px "Chakra Petch"'; ctx.textBaseline = 'middle';
     ch.data.datasets.forEach((ds, i) => { const p = ch.getDatasetMeta(i).data[0]; if (!p) return;
       const t = T[ds.label], r = p.options.radius + 8, txt = `${ds.label}${t.sent_n < 20 ? '*' : ''}`;
       const pos = BUBBLE_POS[ds.label] || (p.x < ch.chartArea.right - 170 ? 'right' : 'left');
