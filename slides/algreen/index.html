@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>알그린 만물미술트럭</title>
+<meta name="description" content="돈 대신 그림으로 물건을 사는 특별한 시장 — 알그린 세 번째 정기모임.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* references/template/motion-board-ppt.html의 스타일을 그대로 계승 */
+#notes{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);width:min(1100px,92vw);padding:18px 24px;background:rgba(29,45,61,.95);color:#f5f5f8;font-size:20px;line-height:1.6;z-index:3}
+#notes[hidden]{display:none}
+@font-face{font-family:'Pretendard';src:url('../../references/template/fonts/PretendardVariable.woff2') format('woff2');font-weight:45 920;font-display:block}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;color:#1d1f20;font-family:'Pretendard',sans-serif;overflow:hidden}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#stage svg{width:100vw;height:56.25vw;max-height:100vh;max-width:177.78vh;display:block}
+.fade-img{opacity:0;animation:fadeImg .6s ease-out forwards}
+@keyframes fadeImg{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.fade-img{animation:none;opacity:1}}
+
+/* 하단 컨트롤 바 — 템플릿 #bar */
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:14px;align-items:center;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(29,45,61,.92);color:#f5f5f8;font-size:14px;opacity:0;transition:opacity .2s;z-index:5}
+body:hover #bar,#bar:focus-within,body.boarding #bar{opacity:1}
+body.clean #bar{display:none}
+#bar input[type=range]{flex:1;accent-color:#94bce3;min-width:60px}
+#bar button{background:none;border:1px solid rgba(245,245,248,.35);color:inherit;font:inherit;padding:6px 12px;cursor:pointer;min-height:34px}
+#bar button:hover,#bar button:focus-visible{border-color:#94bce3;outline:none}
+#count{font-family:'Barlow Condensed',sans-serif;font-size:20px;min-width:64px;text-align:center}
+#help{color:#b5d9fd;white-space:nowrap}
+@media (max-width:760px){#help{display:none}}
+
+/* 개요 보드 — 템플릿 보드(header + grid) */
+#board{position:fixed;inset:0;overflow:auto;background:#e7e7ea;z-index:4;padding-bottom:80px}
+#board[hidden]{display:none}
+#board header{display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap;padding:32px 40px 8px}
+#board h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.02em}
+#board header p{margin:0;font-size:15px;color:#5d5d60}
+#cells{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:24px;padding:24px 40px 48px}
+#board .cell{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:10px}
+#board .thumb svg{width:100%;height:auto;display:block;border:1px solid #d4d4d7;background:#f2f2f3}
+#board .cell:hover svg,#board .cell:focus-visible svg{border-color:#416180}
+#board .cap{display:flex;gap:10px;font-size:15px;font-weight:600}
+#board .cap b{font-family:'Barlow Condensed',sans-serif;font-weight:600;color:#416180}
+</style>
+</head>
+<body>
+<div id="stage" aria-live="polite"></div>
+<div id="notes" hidden></div>
+<div id="board" hidden>
+  <header>
+    <h1>알그린 만물미술트럭</h1>
+    <p>1920×1080 · 7장 · 카드를 누르면 그 장으로 이동</p>
+  </header>
+  <div id="cells"></div>
+</div>
+<div id="bar">
+  <button id="grid">전체 보기</button>
+  <button id="prev" aria-label="이전 슬라이드">←</button>
+  <span id="count">01 / 07</span>
+  <button id="next" aria-label="다음 슬라이드">→</button>
+  <input id="scrub" type="range" min="0" max="6" step="1" value="0" aria-label="슬라이드 이동">
+  <span id="help">← → 넘김 · O 전체 보기 · N 발표 멘트 · R 다시 재생 · F 전체 화면</span>
+  <button id="note">발표 멘트</button>
+  <button id="replay">다시 재생</button>
+  <button id="full">전체 화면</button>
+</div>
+<script src="deck-config.js"></script>
+<script src="../../references/template/core.js"></script>
+<script src="deck.js"></script>
+</body>
+</html>
